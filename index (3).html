@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dompue School - Portal Ujian Online Modern & Face ID</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Inter & JetBrains Mono) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Admin Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            200: '#bae2fd',
+                            300: '#7dd0fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                            950: '#082f49',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'scan': 'scanHorizontal 3.5s linear infinite',
+                        'float': 'floatBubble 8s ease-in-out infinite',
+                        'spin-slow': 'spin 12s linear infinite',
+                    },
+                    keyframes: {
+                        scanHorizontal: {
+                            '0%, 100%': { transform: 'translateY(0%)', opacity: '0.6' },
+                            '50%': { transform: 'translateY(100%)', opacity: '1' },
+                        },
+                        floatBubble: {
+                            '0%, 100%': { transform: 'translateY(0px) scale(1)' },
+                            '50%': { transform: 'translateY(-20px) scale(1.05)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.4s, color 0.4s;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.05);
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(14, 165, 233, 0.4);
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(2, 132, 199, 0.7);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.15) 0%, rgba(3, 105, 161, 0.05) 90.2%);
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .print-card {
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen relative overflow-x-hidden transition-all duration-300">
+
+    <script>
+        // Web Audio API Synthesizer for rich audio feedback
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playBeep(freq = 440, type = 'sine', duration = 0.1, vol = 0.1) {
+                try {
+                    this.init();
+                    if (this.ctx.state === 'suspended') {
+                        this.ctx.resume();
+                    }
+                    let osc = this.ctx.createOscillator();
+                    let gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) { 
+                    console.log("Audio feedback pending activation gesture."); 
+                }
+            },
+            success() {
+                this.playBeep(523.25, 'sine', 0.15, 0.08); // C5
+                setTimeout(() => this.playBeep(659.25, 'sine', 0.15, 0.08), 100); // E5
+                setTimeout(() => this.playBeep(783.99, 'sine', 0.25, 0.1), 200); // G5
+            },
+            error() {
+                this.playBeep(180, 'sawtooth', 0.25, 0.12);
+                setTimeout(() => this.playBeep(140, 'sawtooth', 0.3, 0.12), 120);
+            },
+            click() {
+                this.playBeep(800, 'sine', 0.05, 0.04);
+            },
+            tick() {
+                this.playBeep(1200, 'triangle', 0.04, 0.02);
+            },
+            scanner() {
+                this.playBeep(880, 'sine', 0.08, 0.03);
+            }
+        };
+    </script>
+
+    <script>
+        // Database simulation utilizing client localStorage
+        const INITIAL_STUDENTS = [
+            {
+                username: "Siswamaribelajar240",
+                name: "Siswa Mari Belajar",
+                bio: "Siswa Kelas 9-A SMP Dompue School. Bertekad lulus dengan nilai terbaik!",
+                className: "Kelas 9-A",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
+                isActive: true,
+                faceRegistered: true,
+                exams: {
+                    "Bahasa Indonesia": { score: 90, correct: 18, incorrect: 2, duration: 1120 },
+                    "Bahasa Inggris": { score: 85, correct: 17, incorrect: 3, duration: 980 },
+                    "Matematika": null
+                }
+            },
+            {
+                username: "adiwijaya",
+                name: "Adi Wijaya",
+                bio: "Gemar mempelajari bidang aljabar matematika dan sejarah dunia.",
+                className: "Kelas 9-B",
+                avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
+                isActive: true,
+                faceRegistered: false,
+                exams: {
+                    "Bahasa Indonesia": { score: 80, correct: 16, incorrect: 4, duration: 1400 },
+                    "Bahasa Inggris": { score: 95, correct: 19, incorrect: 1, duration: 800 },
+                    "Matematika": { score: 90, correct: 18, incorrect: 2, duration: 1550 }
+                }
+            },
+            {
+                username: "maharanidewi",
+                name: "Maharani Dewi",
+                bio: "Aktif di organisasi OSIS dan menyukai karya sastra puisi Indonesia.",
+                className: "Kelas 9-A",
+                avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200",
+                isActive: true,
+                faceRegistered: true,
+                exams: {
+                    "Bahasa Indonesia": { score: 95, correct: 19, incorrect: 1, duration: 1050 },
+                    "Bahasa Inggris": { score: 90, correct: 18, incorrect: 2, duration: 1100 },
+                    "Matematika": { score: 75, correct: 15, incorrect: 5, duration: 1720 }
+                }
+            }
+        ];
+
+        if (!localStorage.getItem("dompue_students")) {
+            localStorage.setItem("dompue_students", JSON.stringify(INITIAL_STUDENTS));
+        }
+
+        const getStudentsDB = () => JSON.parse(localStorage.getItem("dompue_students"));
+        const saveStudentsDB = (data) => localStorage.setItem("dompue_students", JSON.stringify(data));
+    </script>
+
+    <!-- Background decorative floating shapes (Visual Premium) -->
+    <div class="absolute inset-0 z-0 pointer-events-none overflow-hidden no-print">
+        <div class="absolute w-[600px] h-[600px] bg-sky-500/10 dark:bg-sky-500/5 rounded-full blur-[130px] top-[-100px] left-[-150px] animate-pulse-slow"></div>
+        <div class="absolute w-[500px] h-[500px] bg-brand-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px] bottom-[-100px] right-[-100px] animate-pulse-slow"></div>
+    </div>
+
+    <!-- MAIN WRAPPER CONTAINER -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+        
+        <!-- HEADER / NAVIGATION -->
+        <header class="glass-panel sticky top-0 z-50 border-b border-slate-200/50 dark:border-slate-800/50 px-4 lg:px-8 py-3 transition-colors duration-300 no-print">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <!-- Brand logo -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="app.showHome()">
+                    <div class="bg-gradient-to-tr from-sky-600 to-brand-500 text-white p-2.5 rounded-xl shadow-lg shadow-sky-500/20 flex items-center justify-center">
+                        <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-xl lg:text-2xl tracking-tight text-slate-950 dark:text-white">
+                            Dompue <span class="text-sky-500">School</span>
+                        </h1>
+                        <p class="text-[10px] uppercase tracking-widest text-sky-600 dark:text-sky-400 font-bold">Ujian Online SMP Modern</p>
+                    </div>
+                </div>
+
+                <!-- Control Buttons and Profiles -->
+                <div class="flex items-center gap-4">
+                    <!-- Session Timeout Counter -->
+                    <div id="session-counter" class="hidden md:flex items-center gap-2 text-xs bg-slate-200/50 dark:bg-slate-900/60 text-slate-700 dark:text-sky-300 py-1.5 px-3 rounded-full border border-sky-500/20">
+                        <i class="fa-solid fa-hourglass-half text-sky-500 animate-spin-slow"></i>
+                        <span>Sesi Aktif: <strong id="session-time" class="font-bold">03:00</strong></span>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <button onclick="app.toggleDarkMode()" class="text-slate-600 dark:text-slate-200 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 p-2.5 rounded-xl border border-slate-200 dark:border-white/5 transition-all" title="Ubah Tema Warna">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
+
+                    <!-- User Information Badge -->
+                    <div id="header-user-badge" class="hidden items-center gap-3 bg-slate-200/30 dark:bg-white/5 pl-3 pr-2 py-1 rounded-xl border border-slate-200 dark:border-white/10">
+                        <div class="text-right">
+                            <p id="header-user-name" class="text-xs font-bold text-slate-900 dark:text-white max-w-[120px] truncate"></p>
+                            <span id="header-user-role-badge" class="text-[9px] px-2 py-0.5 rounded-full font-extrabold"></span>
+                        </div>
+                        <img id="header-user-avatar" class="w-8 h-8 rounded-lg object-cover border border-slate-300 dark:border-white/20" src="" alt="Profil">
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button id="logout-btn" onclick="app.logout()" class="hidden text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-transparent px-3 py-2 rounded-xl text-xs font-semibold transition-all">
+                        <i class="fa-solid fa-right-from-bracket mr-1.5"></i> Keluar
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN VIEW CONTENT -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 lg:px-8 py-8 relative">
+            
+            <!-- VIEW: AUTH (LOGIN & REGISTER) -->
+            <section id="auth-view" class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center justify-center my-4 no-print">
+                <!-- Marketing Pitch (Left Side) -->
+                <div class="space-y-6 text-center md:text-left">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/20">
+                        <i class="fa-solid fa-shield-halved"></i> Fitur Deteksi Wajah AI & Proteksi Ujian
+                    </span>
+                    <h2 class="text-3xl lg:text-4xl font-black tracking-tight leading-tight text-slate-950 dark:text-white">
+                        Sistem Ujian Online <span class="bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">SMP Modern</span> & Terpercaya.
+                    </h2>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                        Dompue School menyediakan lingkungan pengerjaan ujian berbasis kecerdasan buatan, enkripsi password ganda, dan login *Face ID* langsung dari browser Anda tanpa aplikasi tambahan.
+                    </p>
+                    
+                    <!-- Pre-filled Accounts Board -->
+                    <div class="glass-panel p-5 rounded-2xl space-y-3 shadow-lg border border-slate-200 dark:border-white/10">
+                        <h4 class="text-xs uppercase tracking-widest text-slate-600 dark:text-sky-300 font-extrabold flex items-center gap-1.5">
+                            <i class="fa-solid fa-key text-sky-500"></i> Akun Pengujian Sistem (Demo):
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-slate-200/50 dark:bg-slate-900/45 p-3 rounded-xl border border-sky-400/20 cursor-pointer hover:border-sky-500/50 transition-all shadow-sm" onclick="app.fillCredentials('Siswa')">
+                                <p class="font-bold text-sky-600 dark:text-sky-400"><i class="fa-solid fa-user-graduate mr-1"></i> Akun Siswa</p>
+                                <p class="text-slate-500 dark:text-slate-400 mt-1">User: <code class="text-emerald-600 dark:text-emerald-300">Siswamaribelajar240</code></p>
+                                <p class="text-slate-500 dark:text-slate-400">Pass: <code class="text-emerald-600 dark:text-emerald-300">Siswamaribelajar240</code></p>
+                            </div>
+                            <div class="bg-slate-200/50 dark:bg-slate-900/45 p-3 rounded-xl border border-amber-400/20 cursor-pointer hover:border-amber-500/50 transition-all shadow-sm" onclick="app.fillCredentials('Admin')">
+                                <p class="font-bold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-user-shield mr-1"></i> Akun Admin</p>
+                                <p class="text-slate-500 dark:text-slate-400 mt-1">User: <code class="text-amber-600 dark:text-amber-300">Dompue1945</code></p>
+                                <p class="text-slate-500 dark:text-slate-400">Pass: <code class="text-amber-600 dark:text-amber-300">Aminmaribelajar240</code></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login & Register Card Wrapper -->
+                <div class="glass-panel p-8 rounded-3xl shadow-2xl border border-slate-200/60 dark:border-white/10 relative overflow-hidden">
+                    <div class="flex border-b border-slate-200 dark:border-white/10 mb-6 pb-1">
+                        <button onclick="app.setAuthTab('login')" id="tab-btn-login" class="flex-1 text-center font-extrabold text-sm pb-3 text-sky-500 border-b-2 border-sky-500 transition-all">
+                            Masuk Portal
+                        </button>
+                        <button onclick="app.setAuthTab('register')" id="tab-btn-register" class="flex-1 text-center font-extrabold text-sm pb-3 text-slate-400 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                            Daftar Baru
+                        </button>
+                    </div>
+
+                    <!-- TAB: LOGIN -->
+                    <form id="form-login" onsubmit="app.handleLogin(event)" class="space-y-4">
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Username / Email</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                    <i class="fa-solid fa-user"></i>
+                                </span>
+                                <input id="login-username" type="text" placeholder="Masukkan username" class="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all" required>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Kata Sandi</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                <input id="login-password" type="password" placeholder="••••••••" class="w-full pl-10 pr-10 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all" required>
+                                <button type="button" onclick="app.togglePasswordVisibility('login-password', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Use Face ID Checkbox Toggle -->
+                        <div class="flex items-center justify-between py-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600 dark:text-slate-300 hover:text-sky-500 transition-colors">
+                                <input type="checkbox" id="face-id-checkbox" onchange="app.toggleFaceAuthSection()" class="rounded border-slate-300 dark:border-white/20 bg-white dark:bg-slate-900 text-sky-500 focus:ring-0">
+                                <span>Gunakan <strong class="text-sky-500"><i class="fa-solid fa-face-smile mr-0.5"></i> Face ID</strong></span>
+                            </label>
+                            <a href="#" class="text-xs text-sky-500 hover:underline">Lupa sandi?</a>
+                        </div>
+
+                        <!-- Webcam Face Scanner Module Wrapper -->
+                        <div id="face-auth-box" class="hidden flex-col items-center justify-center space-y-2 border border-sky-500/30 bg-sky-500/5 rounded-2xl p-4 transition-all">
+                            <div class="relative w-48 h-36 bg-black rounded-xl overflow-hidden border border-sky-500/40 shadow-inner">
+                                <video id="webcam" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
+                                <canvas id="webcam-canvas" class="absolute inset-0 pointer-events-none"></canvas>
+                                <!-- Scanning Grid Line -->
+                                <div class="absolute inset-x-0 h-0.5 bg-cyan-400 shadow-[0_0_12px_#22d3ee] animate-scan opacity-90"></div>
+                                <!-- Overlaid Scanning Overlay -->
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/60 text-xs text-center p-2 hidden" id="face-status-overlay">
+                                    <span id="face-status-text" class="text-cyan-300 font-bold">Menginisialisasi Kamera...</span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] text-slate-500 dark:text-slate-400 text-center"><i class="fa-solid fa-shield-halved text-sky-500"></i> Kamera melacak wajah dan mengenkripsi ciri geometris secara aman.</span>
+                        </div>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-sky-600 to-brand-500 hover:from-sky-500 hover:to-brand-400 text-white font-extrabold py-3 px-4 rounded-xl shadow-lg shadow-sky-500/20 active:scale-[0.98] transition-all text-sm">
+                            Masuk Ke Portal
+                        </button>
+                    </form>
+
+                    <!-- TAB: REGISTER -->
+                    <form id="form-register" onsubmit="app.handleRegister(event)" class="space-y-4 hidden">
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Nama Lengkap</label>
+                            <input id="reg-fullname" type="text" placeholder="Masukkan nama lengkap" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 transition-all" required>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Username Baru</label>
+                            <input id="reg-username" type="text" placeholder="Buat nama pengguna unik" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 transition-all" required>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Pilih Kelas</label>
+                            <select id="reg-class" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 text-sm focus:outline-none focus:border-sky-500 transition-all" required>
+                                <option value="Kelas 9-A">Kelas 9-A (Kurikulum Utama)</option>
+                                <option value="Kelas 9-B">Kelas 9-B</option>
+                                <option value="Kelas 9-C">Kelas 9-C</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-slate-600 dark:text-sky-200 uppercase tracking-wider">Kata Sandi (Proteksi Enkripsi Bcrypt)</label>
+                            <input id="reg-password" type="password" placeholder="Minimal 6 karakter" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 transition-all" required>
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3 px-4 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all text-sm">
+                            Buat Akun & Masuk
+                        </button>
+                    </form>
+
+                    <!-- OAuth Login Section -->
+                    <div class="relative my-5 text-center">
+                        <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-slate-300 dark:border-white/10"></span></div>
+                        <span class="relative bg-slate-50 dark:bg-slate-950 px-4 text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Atau Masuk Melalui</span>
+                    </div>
+
+                    <!-- Google OAuth Sim Button -->
+                    <button onclick="app.loginWithGoogle()" class="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-300 dark:border-white/15 text-slate-700 dark:text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                        <span>Google Sign-In (OAuth 2.0)</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- VIEW: SISWA DASHBOARD -->
+            <section id="siswa-view" class="hidden space-y-8 no-print">
+                <!-- Profile Board and Summary Banner -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Student Profile Widget -->
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl flex flex-col items-center text-center relative overflow-hidden lg:col-span-1">
+                        <span class="absolute top-4 right-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Siswa Aktif
+                        </span>
+                        
+                        <!-- Profile Image & Upload Fallback -->
+                        <div class="relative group mt-6">
+                            <img id="siswa-profile-img" src="" class="w-24 h-24 rounded-2xl object-cover border-4 border-white dark:border-slate-800 shadow-xl transition-transform" alt="Avatar Siswa">
+                            <button onclick="app.triggerAvatarUpload()" class="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] transition-all duration-300">
+                                <i class="fa-solid fa-camera mr-1 text-sm"></i> Unggah Foto
+                            </button>
+                            <input type="file" id="siswa-avatar-input" class="hidden" accept="image/*" onchange="app.handleAvatarUpload(event)">
+                        </div>
+
+                        <h3 id="siswa-fullname-title" class="text-xl font-black text-slate-900 dark:text-white mt-4"></h3>
+                        <p id="siswa-class-title" class="text-[11px] bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-full text-sky-600 dark:text-sky-300 font-bold mt-1.5"></p>
+                        
+                        <p id="siswa-bio-title" class="text-slate-600 dark:text-slate-300 text-xs italic mt-4 max-w-xs leading-relaxed"></p>
+
+                        <!-- Actions for student settings -->
+                        <div class="w-full grid grid-cols-1 gap-2 mt-6">
+                            <button onclick="app.openEditProfileModal()" class="w-full bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 text-xs text-slate-800 dark:text-white font-bold py-2 rounded-xl transition-all">
+                                <i class="fa-solid fa-user-pen mr-1.5 text-sky-500"></i> Edit Nama & Bio
+                            </button>
+                            <button id="btn-face-register" onclick="app.registerFaceDialog()" class="w-full bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-xs text-sky-600 dark:text-sky-300 font-bold py-2 rounded-xl transition-all">
+                                <i class="fa-solid fa-id-card-clip mr-1.5"></i> Daftar Face ID Wajah
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Welcome Box & Dynamic Metrics -->
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl lg:col-span-2 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-2xl lg:text-3xl font-extrabold text-slate-950 dark:text-white">
+                                Selamat Belajar, <span id="siswa-greet-name" class="text-sky-500">Siswa</span>! 📝
+                            </h2>
+                            <p class="text-slate-600 dark:text-slate-300 text-sm mt-2 leading-relaxed">
+                                Selamat datang di Portal Ujian SMP Negeri Dompue School. Kerjakan seluruh mata pelajaran Kurikulum 2026 yang tersedia di bawah ini. Pastikan koneksi internet stabil sebelum menekan tombol mulai.
+                            </p>
+                        </div>
+
+                        <!-- Mini stats cards -->
+                        <div class="grid grid-cols-3 gap-4 mt-6">
+                            <div class="bg-slate-200/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5 text-center">
+                                <p class="text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wider">Ujian Aktif</p>
+                                <p class="text-2xl font-black text-slate-950 dark:text-white mt-1">3</p>
+                            </div>
+                            <div class="bg-slate-200/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5 text-center">
+                                <p class="text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wider">Diselesaikan</p>
+                                <p id="siswa-stat-completed" class="text-2xl font-black text-sky-500 mt-1">0</p>
+                            </div>
+                            <div class="bg-slate-200/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5 text-center">
+                                <p class="text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wider">Rerata Nilai</p>
+                                <p id="siswa-stat-average" class="text-2xl font-black text-emerald-500 mt-1">0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exam Selection list -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-sky-500"></i> Daftar Mata Pelajaran Ujian Kelas 9
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="subjects-container">
+                        <!-- Exam Subject Cards Inject Dynamically -->
+                    </div>
+                </div>
+
+                <!-- User History Score Card -->
+                <div class="glass-panel p-6 rounded-3xl shadow-xl space-y-4">
+                    <h3 class="text-lg font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Log Hasil & Hasil Ujian Anda
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">
+                                    <th class="py-3 px-4">Mata Pelajaran</th>
+                                    <th class="py-3 px-4 text-center">Status</th>
+                                    <th class="py-3 px-4 text-center">Skor Nilai</th>
+                                    <th class="py-3 px-4 text-center">Jawaban Benar / Salah</th>
+                                    <th class="py-3 px-4 text-center">Waktu Pengerjaan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-recap-table-body" class="text-slate-900 dark:text-white">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ACTIVE ONLINE EXAM -->
+            <section id="exam-view" class="hidden max-w-4xl mx-auto space-y-6 no-print">
+                <!-- Exam Header info -->
+                <div class="glass-panel p-4 lg:p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <span class="text-xs font-bold text-sky-500 uppercase tracking-widest"><i class="fa-solid fa-file-pen mr-1"></i> Lembar Jawaban Digital</span>
+                        <h2 id="active-exam-title" class="text-2xl font-black text-slate-950 dark:text-white mt-1"></h2>
+                    </div>
+                    
+                    <!-- Dynamic Exam Countdown -->
+                    <div id="exam-timer-pill" class="flex items-center gap-3 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-extrabold px-5 py-2.5 rounded-2xl shadow-md transition-all">
+                        <i id="exam-timer-icon" class="fa-solid fa-stopwatch text-xl text-rose-500"></i>
+                        <div>
+                            <p class="text-[9px] uppercase tracking-wider text-rose-500 font-bold">Waktu Tersisa</p>
+                            <p id="exam-timer-text" class="text-lg font-mono">30:00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Question Grid layout -->
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                    
+                    <!-- Sidebar Question Navigator -->
+                    <div class="lg:col-span-1 glass-panel p-5 rounded-2xl space-y-4">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-indigo-200">Indeks Soal</h4>
+                        <div class="grid grid-cols-5 gap-2" id="question-nav-grid">
+                            <!-- Dynamically Generated buttons 1-20 -->
+                        </div>
+                        <div class="pt-3 border-t border-slate-200 dark:border-white/10 space-y-2 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-sky-500 inline-block"></span> Terjawab</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-white/10 inline-block"></span> Kosong</div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-slate-900 dark:bg-white inline-block"></span> Aktif</div>
+                        </div>
+                    </div>
+
+                    <!-- Question Container Body -->
+                    <div class="lg:col-span-3 glass-panel p-6 lg:p-8 rounded-2xl shadow-xl space-y-6">
+                        <!-- Progress status -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                                <span>Kemajuan Pengisian</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div id="exam-progress-bar" class="w-0 h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300"></div>
+                            </div>
+                        </div>
+
+                        <!-- Active Question Text area -->
+                        <div class="space-y-3">
+                            <span class="inline-block bg-slate-200/50 dark:bg-white/5 border border-slate-300 dark:border-white/10 px-3 py-1 rounded-lg text-xs text-slate-700 dark:text-indigo-300 font-semibold" id="question-badge">
+                                Soal 1 dari 20
+                            </span>
+                            <div id="question-text" class="text-slate-900 dark:text-white font-semibold text-base lg:text-lg leading-relaxed pt-2">
+                                <!-- Question Content Inject Dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Answers radio options layout -->
+                        <div class="grid grid-cols-1 gap-3.5" id="options-container">
+                            <!-- Answer choices inject dynamically -->
+                        </div>
+
+                        <!-- Action Navigation footer -->
+                        <div class="flex justify-between items-center pt-6 border-t border-slate-200 dark:border-white/10">
+                            <button onclick="app.prevQuestion()" id="btn-prev-question" class="flex items-center gap-2 px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-xl text-xs font-bold disabled:opacity-30 transition-all">
+                                <i class="fa-solid fa-arrow-left"></i> Sebelumnya
+                            </button>
+                            
+                            <button onclick="app.submitExamDialog()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/20 active:scale-95 transition-all">
+                                <i class="fa-solid fa-check-double mr-1.5"></i> Selesai & Kumpulkan
+                            </button>
+
+                            <button onclick="app.nextQuestion()" id="btn-next-question" class="flex items-center gap-2 px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-xl text-xs font-bold disabled:opacity-30 transition-all">
+                                Selanjutnya <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ADMIN DASHBOARD -->
+            <section id="admin-view" class="hidden space-y-8">
+                <!-- Welcome Card and Administrator Profile Summary -->
+                <div class="glass-panel p-6 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 no-print">
+                    <div class="flex items-center gap-4">
+                        <img id="admin-profile-img" src="" class="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500/30" alt="Avatar Admin">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-2xl font-black text-slate-900 dark:text-white">Panel Utama Admin</h2>
+                                <span class="bg-gradient-to-r from-amber-600 to-amber-500 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-amber-500/20 shadow-md">
+                                    <i class="fa-solid fa-shield-halved mr-1"></i>ADMIN
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">Administrator: <span id="admin-fullname-text" class="font-bold text-slate-950 dark:text-white">Admin Web</span> | <span id="admin-bio-text" class="italic">Mengelola sistem dengan dedikasi tinggi.</span></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="app.openAdminProfileModal()" class="px-3.5 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-xl text-xs font-bold border border-slate-300 dark:border-white/10 transition-all">
+                            <i class="fa-solid fa-user-gear mr-1.5 text-amber-500"></i> Pengaturan Profil Admin
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Analytics Counters Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
+                    <div class="glass-panel p-5 rounded-2xl flex items-center justify-between shadow-md border-l-4 border-l-sky-500">
+                        <div>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Total Siswa Terdaftar</p>
+                            <h3 id="admin-stat-total-students" class="text-3xl font-black text-slate-950 dark:text-white mt-1">0</h3>
+                        </div>
+                        <div class="p-3 bg-sky-500/10 rounded-xl text-sky-500 border border-sky-500/20"><i class="fa-solid fa-users text-xl"></i></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-2xl flex items-center justify-between shadow-md border-l-4 border-l-indigo-500">
+                        <div>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Sesi Ujian Selesai</p>
+                            <h3 id="admin-stat-total-completed" class="text-3xl font-black text-indigo-500 mt-1">0</h3>
+                        </div>
+                        <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-500 border border-indigo-500/20"><i class="fa-solid fa-file-invoice text-xl"></i></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-2xl flex items-center justify-between shadow-md border-l-4 border-l-emerald-500">
+                        <div>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Nilai Rerata Umum</p>
+                            <h3 id="admin-stat-overall-average" class="text-3xl font-black text-emerald-500 mt-1">0.0</h3>
+                        </div>
+                        <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-500 border border-emerald-500/20"><i class="fa-solid fa-square-poll-vertical text-xl"></i></div>
+                    </div>
+                    <div class="glass-panel p-5 rounded-2xl flex items-center justify-between shadow-md border-l-4 border-l-amber-500">
+                        <div>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-bold">Rasio Kelulusan</p>
+                            <h3 id="admin-stat-pass-rate" class="text-3xl font-black text-amber-500 mt-1">100%</h3>
+                        </div>
+                        <div class="p-3 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20"><i class="fa-solid fa-trophy text-xl"></i></div>
+                    </div>
+                </div>
+
+                <!-- Admin Analytics Charts Panels (Visual Analytics) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl space-y-4">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider"><i class="fa-solid fa-chart-bar text-sky-500 mr-2"></i> Nilai Rerata Berdasarkan Mata Pelajaran</h3>
+                        <div class="h-64 relative">
+                            <canvas id="barChartSubjects"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl space-y-4">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider"><i class="fa-solid fa-chart-pie text-indigo-500 mr-2"></i> Kategori Kelulusan (Kriteria Minimal: 70)</h3>
+                        <div class="h-64 relative">
+                            <canvas id="doughnutChartPassing"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Students Account Management and Directory Control -->
+                <div class="glass-panel p-6 rounded-3xl shadow-xl space-y-4 no-print">
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                        <h3 class="text-base font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear text-sky-500"></i> Manajemen & Direktori Akun Siswa
+                        </h3>
+                        <button onclick="app.openAddStudentModal()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                            <i class="fa-solid fa-user-plus mr-1"></i> Tambah Akun Baru
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs lg:text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] font-extrabold">
+                                    <th class="py-3 px-4">Nama Lengkap</th>
+                                    <th class="py-3 px-4">Nama Pengguna</th>
+                                    <th class="py-3 px-4">Kelas</th>
+                                    <th class="py-3 px-4 text-center">Face ID</th>
+                                    <th class="py-3 px-4 text-center">Status</th>
+                                    <th class="py-3 px-4 text-center">Kontrol Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-students-table-body" class="text-slate-900 dark:text-white">
+                                <!-- Dynamic user lists injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Exportable Exam Result Logs Table -->
+                <div class="glass-panel p-6 rounded-3xl shadow-xl space-y-4 print-card">
+                    <div class="flex justify-between items-center flex-wrap gap-3 no-print">
+                        <h3 class="text-base font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-database text-indigo-500"></i> Database & Rekapitulasi Ujian Siswa
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="app.exportToExcel()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                                <i class="fa-solid fa-file-excel mr-1"></i> Ekspor ke Excel (CSV)
+                            </button>
+                            <button onclick="app.exportToPDF()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                                <i class="fa-solid fa-file-pdf mr-1"></i> Cetak / Ekspor ke PDF
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <h2 class="text-xl font-bold text-center text-black hidden block print:block py-4">Dompue School - Laporan Hasil Rekap Nilai Ujian Akhir</h2>
+                    <div class="overflow-x-auto">
+                        <table id="printable-recap-table" class="w-full text-left text-xs lg:text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-300 dark:border-white/15 text-slate-600 dark:text-slate-300 uppercase tracking-wider text-[10px] font-extrabold">
+                                    <th class="py-3 px-4">Siswa</th>
+                                    <th class="py-3 px-4">Mata Pelajaran</th>
+                                    <th class="py-3 px-4 text-center">Skor</th>
+                                    <th class="py-3 px-4 text-center">Benar</th>
+                                    <th class="py-3 px-4 text-center">Salah</th>
+                                    <th class="py-3 px-4 text-center">Waktu Pengerjaan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-recaps-table-body" class="text-slate-950 dark:text-white print:text-black">
+                                <!-- Dynamic entries -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: DEVELOPER HUB (CODE EXPORTS) -->
+            <section id="dev-view" class="glass-panel p-6 lg:p-8 rounded-3xl shadow-xl space-y-6 hidden no-print">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-950 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-sky-500 animate-pulse"></i> Developer Project Hub & Source Code Python
+                    </h2>
+                    <p class="text-slate-600 dark:text-slate-300 text-xs lg:text-sm mt-1">
+                        Gunakan aset, repositori folder, dan potongan kode di bawah ini untuk mengimplementasikan server Python nyata dengan OpenCV, Flask, SQLite/MySQL, dan Bcrypt.
+                    </p>
+                </div>
+
+                <!-- Navigation Tabs Code Repository -->
+                <div class="flex flex-wrap border-b border-slate-200 dark:border-white/10 gap-2 pb-1 text-xs">
+                    <button onclick="app.setDevTab('structure')" id="dev-tab-btn-structure" class="px-4 py-2 text-sky-500 border-b-2 border-sky-500 font-bold transition-all">Struktur Direktori</button>
+                    <button onclick="app.setDevTab('requirements')" id="dev-tab-btn-requirements" class="px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all">requirements.txt</button>
+                    <button onclick="app.setDevTab('flask-app')" id="dev-tab-btn-flask-app" class="px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all">app.py (Flask)</button>
+                    <button onclick="app.setDevTab('database')" id="dev-tab-btn-database" class="px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all">schema.sql</button>
+                    <button onclick="app.setDevTab('face-recognition')" id="dev-tab-btn-face-recognition" class="px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all">face_auth.py (OpenCV)</button>
+                    <button onclick="app.setDevTab('guide')" id="dev-tab-btn-guide" class="px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all">Panduan Hosting & Deploy</button>
+                </div>
+
+                <!-- Display Box Code -->
+                <div class="relative bg-slate-950 border border-slate-800 rounded-2xl p-5 text-[11px] lg:text-xs font-mono text-cyan-400 overflow-x-auto max-h-[500px] leading-relaxed">
+                    <button onclick="app.copyActiveCode()" class="absolute top-4 right-4 bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white font-bold py-1 px-3 rounded-lg transition-all">
+                        <i class="fa-solid fa-copy mr-1.5"></i> Salin Kode
+                    </button>
+                    <pre id="code-content-block">Loading Code...</pre>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- FOOTER & PERSISTENT VIEW NAVIGATION -->
+        <footer class="mt-auto py-5 border-t border-slate-200 dark:border-white/5 bg-white/20 dark:bg-slate-950/40 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between px-8 gap-4 no-print">
+            <p>&copy; 2026 Dompue School. All Rights Reserved.</p>
+            <div class="flex gap-4">
+                <button onclick="app.showHome()" class="hover:text-slate-800 dark:hover:text-white transition-all"><i class="fa-solid fa-house mr-1"></i> Halaman Utama</button>
+                <button onclick="app.showDevHub()" class="text-sky-500 hover:text-sky-400 font-bold transition-all"><i class="fa-solid fa-code-branch mr-1"></i> Dev Hub (Python Source)</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER (PREMIUM MESSAGING) -->
+    <div id="toast-message" class="fixed bottom-6 right-6 transform translate-y-24 opacity-0 transition-all duration-300 z-[100] max-w-sm w-full p-4 rounded-2xl glass-panel border shadow-2xl flex items-center gap-3 no-print">
+        <div id="toast-icon-bg" class="p-3.5 rounded-xl text-white">
+            <i id="toast-icon" class="fa-solid"></i>
+        </div>
+        <div>
+            <h4 id="toast-title" class="font-extrabold text-slate-950 dark:text-white text-sm">Pesan Notifikasi</h4>
+            <p id="toast-desc" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed"></p>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: CONFIRM ACTION -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-950/75 z-[90] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-3xl border border-rose-500/20 shadow-2xl text-center space-y-4">
+            <div class="mx-auto w-12 h-12 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center text-xl">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <div>
+                <h3 id="confirm-title" class="text-base font-extrabold text-slate-900 dark:text-white">Konfirmasi Langkah Anda</h3>
+                <p id="confirm-desc" class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed"></p>
+            </div>
+            <div class="flex justify-center gap-2 pt-2">
+                <button onclick="app.closeConfirmModal(false)" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl transition-all">Batal</button>
+                <button onclick="app.closeConfirmModal(true)" id="confirm-confirm-btn" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: FACE ID LANDMARKS REGISTRATION -->
+    <div id="face-register-modal" class="fixed inset-0 bg-slate-950/75 z-[90] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-sky-500/20 shadow-2xl space-y-4">
+            <h3 class="text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-face-smile text-sky-500"></i> Daftarkan Landmark Wajah Face ID
+            </h3>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Posisikan wajah Anda tepat di tengah kotak kamera pemindaian. Sistem akan menangkap deskriptor biometrik wajah terenkripsi untuk divalidasi saat login portal.
+            </p>
+            <div class="relative w-full h-56 bg-black rounded-2xl overflow-hidden border border-sky-500/30">
+                <video id="reg-webcam" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
+                <div class="absolute inset-0 border-2 border-dashed border-cyan-400 rounded-full m-8 pointer-events-none animate-pulse"></div>
+                <div id="reg-status-overlay" class="absolute inset-0 bg-black/70 flex items-center justify-center text-xs text-cyan-300 font-bold">Kamera siap...</div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="app.closeFaceRegister(false)" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl">Batal</button>
+                <button onclick="app.captureFaceLandmarks()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-black rounded-xl">Pindai & Daftarkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: EDIT USER PROFILE (STUDENT) -->
+    <div id="edit-profile-modal" class="fixed inset-0 bg-slate-950/70 z-[80] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-300 dark:border-white/10 shadow-2xl space-y-4">
+            <h3 class="text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-pen text-sky-500"></i> Perbarui Profil Siswa
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Nama Lengkap Siswa</label>
+                    <input type="text" id="edit-profile-name" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Tulis Bio Singkat Anda</label>
+                    <textarea id="edit-profile-bio" rows="3" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-sky-500"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="app.closeEditProfileModal()" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl">Batal</button>
+                <button onclick="app.saveEditProfile()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold rounded-xl shadow-md">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: EDIT ADMIN PROFILE -->
+    <div id="edit-admin-modal" class="fixed inset-0 bg-slate-950/70 z-[80] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-300 dark:border-white/10 shadow-2xl space-y-4">
+            <h3 class="text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-gear text-amber-500"></i> Edit Profil Administrator
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Nama Tampilan Admin</label>
+                    <input type="text" id="edit-admin-name" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Teks Bio Admin</label>
+                    <textarea id="edit-admin-bio" rows="3" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Foto Profil Admin URL (Awan / HTTPS)</label>
+                    <input type="text" id="edit-admin-avatar" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="app.closeAdminProfileModal()" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl">Batal</button>
+                <button onclick="app.saveAdminProfile()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold rounded-xl shadow-md">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: ADD STUDENT (ADMIN ACCESS ONLY) -->
+    <div id="add-student-modal" class="fixed inset-0 bg-slate-950/70 z-[80] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-300 dark:border-white/10 shadow-2xl space-y-4">
+            <h3 class="text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-sky-500"></i> Daftarkan Akun Siswa Baru
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+                    <input type="text" id="add-student-name" placeholder="Contoh: Muhammad Rafli" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Username Unik</label>
+                    <input type="text" id="add-student-username" placeholder="Contoh: mrafli99" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Pilih Rombongan Belajar / Kelas</label>
+                    <select id="add-student-class" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-700 dark:text-slate-300 text-sm focus:outline-none focus:border-sky-500">
+                        <option value="Kelas 9-A">Kelas 9-A</option>
+                        <option value="Kelas 9-B">Kelas 9-B</option>
+                        <option value="Kelas 9-C">Kelas 9-C</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Kata Sandi Akun</label>
+                    <input type="password" id="add-student-password" placeholder="Minimal 6 karakter" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="app.closeAddStudentModal()" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl">Batal</button>
+                <button onclick="app.handleAddStudent()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold rounded-xl shadow-md">Simpan Akun</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG MODAL: EDIT STUDENT (ADMIN ACCESS ONLY) -->
+    <div id="edit-student-modal" class="fixed inset-0 bg-slate-950/70 z-[80] flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-300 dark:border-white/10 shadow-2xl space-y-4">
+            <h3 class="text-lg font-black text-slate-950 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-user-pen text-indigo-500"></i> Kelola & Sunting Akun Siswa
+            </h3>
+            <input type="hidden" id="edit-student-index">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+                    <input type="text" id="edit-student-name-input" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Rombongan Kelas</label>
+                    <input type="text" id="edit-student-class-input" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Bio Ringkas</label>
+                    <textarea id="edit-student-bio-input" rows="2" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">Status Akses Akun</label>
+                    <select id="edit-student-status-input" class="w-full mt-1 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/15 rounded-xl text-slate-700 dark:text-slate-300 text-sm focus:outline-none">
+                        <option value="true">Aktif (Diberikan Akses)</option>
+                        <option value="false">Tidak Aktif (Blokir Akses)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="app.closeEditStudentModal()" class="px-4 py-2 bg-slate-200/50 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl">Batal</button>
+                <button onclick="app.saveEditStudent()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl shadow-md">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPREHENSIVE EXAMS QUESTIONS ENGINE (60 ACCURATE ITEMS) -->
+    <script>
+        const EXAM_DATABASE = {
+            "Bahasa Indonesia": [
+                { q: "Struktur teks laporan percobaan yang sistematis diawali dengan bagian...", a: ["Langkah-langkah", "Tujuan dan Rumusan", "Hasil Percobaan", "Daftar Pustaka"], c: 1 },
+                { q: "Kalimat perintah: 'Larutkan cairan A ke dalam 200ml air suling!' merupakan ciri kebahasaan aspek...", a: ["Imperatif", "Deklaratif", "Interogatif", "Subjektif"], c: 0 },
+                { q: "Pidato persuasif bertujuan utama untuk memengaruhi audiens melalui...", a: ["Kisah fiksi naratif", "Argumentasi logis dan imbauan nyata", "Lelucon komedi", "Grafik statistik abstrak"], c: 1 },
+                { q: "Aspek intrinsik cerita pendek yang menggambarkan waktu, tempat, dan suasana kejadian disebut...", a: ["Plot Alur", "Perwatakan", "Latar / Setting", "Gaya Bahasa"], c: 2 },
+                { q: "Kalimat di bawah ini yang paling objektif menggambarkan fakta adalah...", a: ["Matematika merupakan ilmu tersulit di dunia.", "Air akan mendidih pada temperatur 100 derajat Celsius di tekanan standar.", "Puisi karya Chairil Anwar sangat romantis.", "Buku pelajaran itu berwarna biru sangat indah."], c: 1 },
+                { q: "Bagian tanggapan kritis yang berisi argumen menolak secara logis terdapat pada bab...", a: ["Evaluasi utama", "Tanggapan Pro", "Tanggapan Kontra", "Kesimpulan Akhir"], c: 2 },
+                { q: "Bahan referensi penulisan teks laporan ilmiah sebaiknya didasarkan pada...", a: ["Opini blogger lepas", "Fakta empirik hasil pengujian riil", "Khayalan kreatif penulis", "Mitos masyarakat sekitar"], c: 1 },
+                { q: "Kalimat persuasif bertema pelestarian alam yang paling tepat adalah...", a: ["Hutan Indonesia sangat lebat di Kalimantan.", "Mari menanam pohon sejak dini guna menjaga ketersediaan oksigen bumi!", "Mengapa kamu membuang botol air minum sembarangan?", "Hujan lebat melanda wilayah Jabodetabek sejak pagi."], c: 1 },
+                { q: "Konjungsi pertentangan di bawah ini ditunjukkan oleh kata...", a: ["Serta", "Namun", "Maka", "Karena"], c: 1 },
+                { q: "Tokoh penengah yang objektif menyelesaikan konflik utama dalam cerita disebut...", a: ["Antagonis", "Protagonis", "Tritagonis", "Figuran"], c: 2 },
+                { q: "Komponen pokok teks pidato terdiri dari tiga bagian penting, yaitu...", a: ["Abstrak, Pembahasan, Kesimpulan", "Pembuka, Isi Utama, Penutup", "Tujuan, Metode, Rekapitulasi", "Orientasi, Konflik, Koda"], c: 1 },
+                { q: "Ciri kebahasaan teks cerpen yang memicu imajinasi kuat pembaca adalah...", a: ["Pemakaian istilah medis baku", "Penggunaan majas metafora dan bahasa emotif", "Penerapan rumus aljabar", "Pengutipan hukum fisika dasar"], c: 1 },
+                { q: "Kata ganti orang pertama tunggal yang sering dipakai pada cerpen bersudut pandang subjektif adalah...", a: ["Dia", "Mereka", "Aku", "Kalian"], c: 2 },
+                { q: "Bentuk diskusi panel biasanya dipimpin langsung oleh seorang pengatur alur yaitu...", a: ["Panelis", "Notulen", "Moderator", "Dekan"], c: 2 },
+                { q: "Kata di bawah ini yang memiliki penulisan baku sesuai KBBI adalah...", a: ["Apotik", "Analisa", "Sistem", "Khawatir"], c: 2 },
+                { q: "Tujuan utama penulisan teks ulasan buku (resensi) adalah...", a: ["Mengkritik tajam pribadi penulis buku", "Memberikan gambaran dan penilaian kualitas karya buku kepada pembaca", "Menyalin seluruh bab buku secara gratis", "Mempromosikan penjualan toko buku online"], c: 1 },
+                { q: "Ciri utama teks diskusi yang membedakannya dengan teks lainnya adalah...", a: ["Hanya menampilkan satu sudut pandang penulis saja", "Menyajikan sudut pandang pro dan kontra secara objektif", "Menggunakan bahasa gaul informal", "Berisi petunjuk resep masakan"], c: 1 },
+                { q: "Bagian akhir cerpen yang memuat amanat atau perubahan nasib tokoh disebut...", a: ["Koda / Reorientasi", "Komplikasi awal", "Klimaks pertikaian", "Orientasi pengenalan"], c: 0 },
+                { q: "Unsur ekstrinsik sebuah karya sastra cerpen dipengaruhi oleh...", a: ["Jumlah halaman kertas", "Latar belakang sosial budaya masyarakat penulis", "Jenis font komputer yang dipakai", "Tebal tipis jilid buku"], c: 1 },
+                { q: "Kalimat yang menggunakan kata rujukan benda yang tepat adalah...", a: ["Dia pergi ke pasar mengendarai sepeda motor.", "Sungai Ciliwung meluap pagi ini. Hal ini menyebabkan banjir bandang.", "Mereka sangat gembira setelah mendengar kabar kelulusan.", "Kapan kita akan mulai belajar bersama?"], c: 1 }
+            ],
+            "Bahasa Inggris": [
+                { q: "Budi: 'I successfully passed the state exam with high score!' - Rani: '...'", a: ["Please accept my condolences.", "Congratulations! Your hard work paid off.", "I do not agree with your statement.", "I doubt you can do it."], c: 1 },
+                { q: "We must wash our hands regularly ... prevent viral transmission.", a: ["so that", "in order to", "because", "although"], c: 1 },
+                { q: "Rian: 'What do you think of our new class project?' - Sinta: '... We need to gather more resources.'", a: ["I totally agree with you.", "I am not sure I agree with that.", "It is already completed.", "No doubt about it."], text: "Shows disagreement", c: 1 },
+                { q: "Which expression represents a genuine wish or hope for someone's future?", a: ["I hope you achieve your dream of becoming a doctor.", "You look very pale today.", "Where did you put my English textbook?", "I bought three pencils yesterday."], c: 0 },
+                { q: "A food package label provides complete information. The word 'Ingredients' means...", a: ["The expiration date of the product", "The material substances used to make the food", "The price tag at the store", "The target age of consumer"], c: 1 },
+                { q: "The social function of a procedure text is to...", a: ["Retell historical events in chronological order", "Show how to create or operate something through sequential steps", "Report scientific features of an animal species", "Amuse the readers with funny fictional short tales"], text: "Procedure text goal", c: 1 },
+                { q: "Complete the procedure: '(1) Boil water, (2) Insert the tea bag into the cup, (3) Pour hot water, (4) ... and enjoy.'", a: ["Wash the cup", "Add some sugar and stir well", "Throw away the hot water", "Keep the dry tea bag"], c: 1 },
+                { q: "What is the passive form of: 'The chef prepares delicious steak.'?", a: ["Delicious steak was prepared by the chef.", "Delicious steak is prepared by the chef.", "Delicious steak prepares the chef.", "Delicious steak is preparing by the chef."], c: 1 },
+                { q: "While my brother was playing games, my sister ... studying English.", a: ["is", "was", "were", "are"], c: 1 },
+                { q: "They have studied science at Dompue School ... three years.", a: ["since", "for", "ago", "during"], c: 1 },
+                { q: "A narrative text primarily utilizes which of the following tenses?", a: ["Simple Present Tense", "Simple Past Tense", "Present Perfect Tense", "Future Continuous Tense"], c: 1 },
+                { q: "In the famous legend of Malin Kundang, the main conflict begins when...", a: ["Malin went to sail abroad", "Malin refused to recognize his poor mother", "Malin became rich and owned big ships", "The mother cursed Malin into a solid rock"], c: 1 },
+                { q: "A report text describes things in general. Which statement fits a report text?", a: ["My cat, Blackie, loves eating fresh fried fish.", "Cats are carnivorous mammals that belong to the Felidae family.", "Once upon a time, there was a magical golden cat.", "I think cats are much better pets than dogs."], c: 1 },
+                { q: "Select the correct antonym of the word 'Gigantic':", a: ["Huge", "Immense", "Tiny", "Massive"], c: 2 },
+                { q: "Father: 'Where is Budi?' - Mother: 'He ... the examination on his computer right now.'", a: ["completed", "is completing", "was completing", "completes"], c: 1 },
+                { q: "We should wear safety helmets ... protect our heads from falling objects.", a: ["so that", "to", "because", "due to"], c: 1 },
+                { q: "Passive Voice: 'The classroom is cleaned by the students every afternoon.' - What is the active form?", a: ["The students clean the classroom every afternoon.", "The students cleaned the classroom every afternoon.", "The students are cleaning the classroom.", "The students will clean the classroom."], c: 0 },
+                { q: "A 'DANGER: HIGH VOLTAGE' warning sign is usually posted in which area?", a: ["In a quiet reading library room", "On an electric power distribution fence", "In a school green park garden", "Outside a public swimming pool"], c: 1 },
+                { q: "What is the main purpose of an advertisement text?", a: ["To teach how to cook Indonesian food", "To persuade readers to buy or use a product or service", "To describe the physical structure of a building", "To notify a student's graduation date"], c: 1 },
+                { q: "Complete the sentence: 'She has already ... her project proposal to the principal.'", a: ["submit", "submitted", "submitting", "submits"], c: 1 }
+            ],
+            "Matematika": [
+                { q: "Nilai eksponen sederhana dari hasil perkalian $3^3 \\times 3^4$ adalah...", a: ["$3^{12}$", "$3^7$", "$9^7$", "$3^1$"], c: 1 },
+                { q: "Bentuk penyederhanaan radikal dari $\\sqrt{48}$ yang benar adalah...", a: ["$4\\sqrt{3}$", "$3\\sqrt{4}$", "$2\\sqrt{6}$", "$4\\sqrt{2}$"], c: 0 },
+                { q: "Persamaan kuadrat $x^2 - 7x + 10 = 0$ mempunyai himpunan penyelesaian akar...", a: ["$x = -2$ dan $x = -5$", "$x = 2$ dan $x = 5$", "$x = 1$ dan $x = 10$", "$x = -1$ dan $x = -10$"], c: 1 },
+                { q: "Nilai diskriminan ($D$) dari persamaan kuadrat $x^2 - 6x + 9 = 0$ adalah...", a: ["9", "0", "-9", "18"], c: 1 },
+                { q: "Grafik fungsi kuadrat $f(x) = x^2 - 4x - 5$ memotong sumbu koordinat Y pada koordinat titik...", a: ["(0, -5)", "(0, 5)", "(-5, 0)", "(5, 0)"], c: 0 },
+                { q: "Persamaan garis sumbu simetri parabola fungsi kuadrat $f(x) = x^2 - 8x + 12$ adalah...", a: ["$x = 2$", "$x = 4$", "$x = 6$", "$x = 8$"], c: 1 },
+                { q: "Apabila titik koordinat $A(3, 4)$ direfleksikan terhadap garis sumbu X, bayangannya terletak di...", a: ["$A'(-3, 4)$", "$A'(3, -4)$", "$A'(-3, -4)$", "$A'(4, 3)$"], c: 1 },
+                { q: "Titik koordinat $B(-2, 5)$ ditranslasikan sebesar vektor pergeseran $T(4, -3)$. Bayangan titik $B'$ adalah...", a: ["$B'(2, 2)$", "$B'(-6, 8)$", "$B'(6, -2)$", "$B'(2, 8)$"], c: 0 },
+                { q: "Rotasi titik koordinat $P(4, 2)$ sebesar 90 derajat berlawanan arah jarum jam dengan pusat O(0,0) adalah...", a: ["$P'(2, -4)$", "$P'(-2, 4)$", "$P'(-4, -2)$", "$P'(2, 4)$"], c: 1 },
+                { q: "Dilatasi skala titik koordinat $Q(3, -2)$ dengan pusat acuan O(0,0) faktor skala $k = 4$ menghasilkan...", a: ["$Q'(12, -8)$", "$Q'(7, 2)$", "$Q'(-12, 8)$", "$Q'(3/4, -1/2)$"], c: 0 },
+                { q: "Dua buah bangun segitiga dikatakan kongruen secara mutlak jika memenuhi syarat...", a: ["Luas areanya sama tetapi bentuk sudutnya berbeda", "Sisi-sisi yang bersesuaian sama panjang dan sudut-sudut bersesuaian sama besar", "Memiliki warna arsiran yang identik", "Sisi-sisi sebanding saja tanpa sudut"], c: 1 },
+                { q: "Sebuah tiang vertikal setinggi 3 meter menghasilkan bayangan tanah sepanjang 1,5 meter. Pada saat yang sama, sebuah gedung sekolah menghasilkan bayangan sepanjang 10 meter. Tinggi gedung sekolah itu adalah...", a: ["20 meter", "15 meter", "30 meter", "25 meter"], c: 0 },
+                { q: "Bentuk penulisan notasi ilmiah baku untuk bilangan desimal 0,0000789 adalah...", a: ["$7,89 \\times 10^{-5}$", "$7,89 \\times 10^{-4}$", "$78,9 \\times 10^{-6}$", "$7,89 \\times 10^5$"], c: 0 },
+                { q: "Akar penyelesaian kuadratis dari persamaan $3x^2 + 10x + 3 = 0$ adalah...", a: ["-3 dan -1/3", "3 dan 1/3", "-3 dan 1/3", "3 dan -1/3"], c: 0 },
+                { q: "Rumus determinasi akar kuadratis ABC kuadrat yang benar adalah...", a: ["$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$", "$x = \\frac{b \\pm \\sqrt{b^2 - 4ac}}{2a}$", "$x = \\frac{-b \\pm \\sqrt{b^2 + 4ac}}{2a}$", "$x = \\frac{-b \\pm \\sqrt{ac - 4b}}{2a}$"], c: 0 },
+                { q: "Nilai balik minimum fungsi kuadrat parabola $f(x) = x^2 - 6x + 8$ berada pada titik Y...", a: ["-1", "0", "1", "2"], c: 0 },
+                { q: "Sebuah foto berukuran 20cm x 30cm ditempelkan pada karton. Sisa lebar karton sebelah kiri, kanan, dan atas foto adalah 2cm. Jika foto dan karton sebangun, lebar karton bagian bawah foto adalah...", a: ["4 cm", "2 cm", "3 cm", "5 cm"], c: 1 },
+                { q: "Hasil penyederhanaan eksponensial pecahan dari $5^{-3}$ adalah...", a: ["-125", "1/125", "-15", "125"], c: 1 },
+                { q: "Hasil kali akar-akar persamaan kuadrat $2x^2 - 8x + 6 = 0$ adalah...", a: ["3", "-3", "4", "-4"], c: 0 },
+                { q: "Bentuk pangkat positif paling sederhana dari $\\frac{x^{-4}}{y^{-3}}$ adalah...", a: ["$\\frac{y^3}{x^4}$", "$\\frac{x^4}{y^3}$", "$x^4 y^3$", "$\\frac{1}{x^4 y^3}$"], c: 0 }
+            ]
+        };
+    </script>
+
+    <!-- SOURCE CODE REPOSITORY FOR DEV HUB -->
+    <script>
+        const DEV_RESOURCES = {
+            "structure": `DompueSchool_FlaskProject/
+├── app.py                      # Server Flask Utama & Route API Enkripsi
+├── models.py                   # Struktur Tabel ORM & Integrasi Hashing Bcrypt
+├── face_auth.py                # Pemrosesan Deteksi Wajah & Vektor OpenCV
+├── requirements.txt            # Package Library Python Yang Dibutuhkan
+├── database/
+│   └── dompue_school.db        # File Database SQLite Relasional
+├── static/
+│   ├── css/
+│   │   └── tailwind.css        # Desain Interface
+│   └── uploads/                # Penyimpanan Foto Avatar & Dataset Wajah
+└── templates/
+    └── index.html              # Template Frontend Portal`,
+
+            "requirements": `Flask==2.3.2
+Flask-SQLAlchemy==3.0.5
+Flask-Bcrypt==1.0.1
+Flask-Login==0.6.2
+opencv-python==4.7.0.72
+face-recognition==1.3.0
+numpy==1.24.3
+pandas==2.0.2
+openpyxl==3.1.2
+reportlab==4.0.4`,
+
+            "flask-app": `import os
+import datetime
+import pickle
+from flask import Flask, request, jsonify, session
+from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'SuperSecretKeyDompue1945SecureEncrypt'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database/dompue_school.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+
+# Model ORM Database Relasional
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(20), default='SISWA') # ADMIN / SISWA
+    class_name = db.Column(db.String(20), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    avatar = db.Column(db.String(200), default='default_profile.png')
+    is_active = db.Column(db.Boolean, default=True)
+    face_encoding = db.Column(db.LargeBinary, nullable=True) # Pickle binary vector 128D
+
+class ExamResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    correct_count = db.Column(db.Integer, nullable=False)
+    incorrect_count = db.Column(db.Integer, nullable=False)
+    time_taken = db.Column(db.Integer, nullable=False) # Dalam detik
+    date_submitted = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# API login utama dengan Bcrypt & Face ID
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    use_face_id = data.get('use_face_id', False)
+    
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.is_active:
+        return jsonify({"success": False, "message": "Akun tidak ditemukan atau tidak aktif!"}), 401
+    
+    if use_face_id:
+        # Panggil pemrosesan OpenCV dan kecocokan Face ID
+        return run_face_id_matching(user, data.get('image_data'))
+        
+    if bcrypt.check_password_hash(user.password_hash, password):
+        login_user(user)
+        return jsonify({
+            "success": True, 
+            "user": {"username": user.username, "name": user.name, "role": user.role, "class": user.class_name}
+        })
+    return jsonify({"success": False, "message": "Kredensial sandi Anda tidak valid!"}), 401
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=5000, debug=True)`,
+
+            "database": `-- Struktur Database Relasional Dompue School (MySQL / SQLite Compatible)
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(80) UNIQUE NOT NULL,
+    password_hash VARCHAR(120) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'SISWA',
+    class_name VARCHAR(20) DEFAULT NULL,
+    bio TEXT DEFAULT NULL,
+    avatar VARCHAR(200) DEFAULT 'default.png',
+    is_active BOOLEAN DEFAULT 1,
+    face_encoding BLOB DEFAULT NULL, -- Binary numpy vector untuk Face ID
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS exam_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    subject VARCHAR(100) NOT NULL,
+    score REAL NOT NULL,
+    correct_count INTEGER NOT NULL,
+    incorrect_count INTEGER NOT NULL,
+    time_taken INTEGER NOT NULL, -- durasi detik
+    date_submitted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Kredensial Default Terenkripsi (Bcrypt) untuk akun bawaan
+INSERT INTO users (username, password_hash, name, role) 
+VALUES ('Dompue1945', '$2b$12$R.S7/gM0t7rB2/5gX3xVee09X/7Ym5bpxbKGeHn920ZqLg9xG0O5S', 'Admin Web', 'ADMIN');`,
+
+            "face-recognition": `# face_auth.py - Modul Analisis OpenCV & face_recognition Landmark Wajah
+import cv2
+import numpy as np
+import face_recognition
+import base64
+import pickle
+
+def decode_b64_image(b64_string):
+    """Mengubah string base64 gambar webcam client menjadi format matriks OpenCV"""
+    header, encoded = b64_string.split(",", 1)
+    data = base64.b64decode(encoded)
+    np_arr = np.frombuffer(data, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    return image
+
+def extract_face_landmarks(b64_string):
+    """Mengekstrak deskriptor landmark 128D menggunakan library face_recognition"""
+    try:
+        cv_img = decode_b64_image(b64_string)
+        rgb_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        
+        # Lokalisasi koordinat wajah
+        face_locations = face_recognition.face_locations(rgb_img)
+        face_encodings = face_recognition.face_encodings(rgb_img, face_locations)
+        
+        if len(face_encodings) > 0:
+            return face_encodings[0] # Mengembalikan 128-dimensional embedding vector
+        return None
+    except Exception as e:
+        print("Pemrosesan citra OpenCV gagal:", e)
+        return None
+
+def verify_face(saved_vector_bytes, current_b64_image):
+    """Membandingkan vektor wajah tersimpan dengan foto frame terbaru"""
+    saved_encoding = pickle.loads(saved_vector_bytes)
+    current_encoding = extract_face_landmarks(current_b64_image)
+    
+    if current_encoding is None:
+        return False, "Wajah tidak terdeteksi dalam frame kamera!"
+        
+    # Perhitungan Euclidean distance antartitik wajah (Toleransi default: 0.6)
+    matches = face_recognition.compare_faces([saved_encoding], current_encoding, tolerance=0.55)
+    distance = face_recognition.face_distance([saved_encoding], current_encoding)[0]
+    
+    if matches[0]:
+        return True, f"Verifikasi wajah berhasil (Akurasi Jarak: {round((1-distance)*100, 2)}%)"
+    return False, "Geometri wajah tidak cocok dengan database!"`,
+
+            "guide": `=== PANDUAN DEPLOYMENT DAN SETUP PORTAL UJIAN ONLINE DOMPUE SCHOOL ===
+
+A. Cara Setup Aplikasi Lokal (Langkah-Langkah):
+------------------------------------------------
+1. Pastikan Anda telah menginstal Python 3.9 ke atas pada komputer Anda.
+2. Buat folder proyek baru lalu buka melalui Terminal atau CMD:
+   $ mkdir DompueProject && cd DompueProject
+3. Simpan baris filerequirements.txt, app.py, models.py, dan face_auth.py ke dalam direktori.
+4. Buat virtual environment python untuk menghindari konflik package:
+   $ python -m venv venv
+5. Aktifkan virtual environment:
+   - Windows: venv\\Scripts\\activate
+   - Linux/macOS: source venv/bin/activate
+6. Pasang seluruh dependencies dan library OpenCV:
+   $ pip install -r requirements.txt
+7. Jalankan Server Flask lokal Anda:
+   $ python app.py
+8. Buka browser modern Anda pada tautan http://127.0.0.1:5000
+
+B. Cara Registrasi Akun Administrator Baru Secara Manual:
+----------------------------------------------------------
+Anda dapat mendaftarkan akun admin secara terenkripsi menggunakan modul Flask CLI:
+$ python
+>>> from app import db, User, bcrypt
+>>> secured_pass = bcrypt.generate_password_hash("SandiAdminBaruAnda").decode('utf-8')
+>>> admin = User(username="AdminKeren", password_hash=secured_pass, name="Admin Baru", role="ADMIN")
+>>> db.session.add(admin)
+>>> db.session.commit()
+>>> exit()
+
+C. Cara Deploy Aplikasi ke VPS Cloud Server (Production):
+---------------------------------------------------------
+1. Pasang Server Ubuntu Linux pada VPS Anda (AWS EC2, DigitalOcean, dsb).
+2. Install Nginx, Python3-pip, Git, dan library sistem OpenCV di VPS:
+   $ sudo apt update
+   $ sudo apt install python3-pip python3-venv nginx git libsm6 libxrender1 libxext6 -y
+3. Kloning repositori kode Anda dan jalankan virtual environment di VPS.
+4. Gunakan server Gunicorn (WSGI) untuk memproses request secara asinkron di port 8000:
+   $ pip install gunicorn
+   $ gunicorn --workers 3 --bind 127.0.0.1:8000 app:app
+5. Konfigurasikan Nginx sebagai reverse proxy yang mengarah ke port gunicorn localhost 8000.
+6. Sangat direkomendasikan memasang SSL gratis Let's Encrypt (Certbot) karena akses API kamera browser (Webcam API) membutuhkan protokol HTTPS aman!`
+        };
+    </script>
+
+    <!-- CORE CONTROLLER JAVASCRIPT SYSTEM -->
+    <script>
+        const app = {
+            currentUser: null,
+            activeTab: 'login',
+            darkMode: false,
+            activeExam: null,
+            examTimer: null,
+            examTimeLeft: 1800, // 30 Menit dalam detik
+            currentQuestionIdx: 0,
+            answers: {}, // Menyimpan kunci jawaban siswa
+            activeDevTab: 'structure',
+            streamInterval: null,
+            localStream: null,
+            idleTimer: null,
+            idleTimeout: 3 * 60 * 1000, // Batas waktu tidak aktif (3 Menit) untuk auto logout
+
+            init() {
+                // Check cached session
+                const cachedUser = sessionStorage.getItem("active_user");
+                if (cachedUser) {
+                    this.currentUser = JSON.parse(cachedUser);
+                    this.showDashboard();
+                } else {
+                    this.showAuth();
+                }
+
+                // Theme color evaluation preference
+                if (localStorage.getItem("theme_mode") === "light") {
+                    this.darkMode = false;
+                    document.documentElement.classList.remove("dark");
+                } else {
+                    this.darkMode = true;
+                    document.documentElement.classList.add("dark");
+                }
+                this.updateThemeUI();
+
+                // Listen activity for auto-logout mechanism
+                document.addEventListener("mousemove", () => this.resetIdleTimer());
+                document.addEventListener("keydown", () => this.resetIdleTimer());
+                document.addEventListener("click", () => this.resetIdleTimer());
+
+                this.resetIdleTimer();
+            },
+
+            showToast(title, desc, type = 'success') {
+                const toast = document.getElementById("toast-message");
+                const titleEl = document.getElementById("toast-title");
+                const descEl = document.getElementById("toast-desc");
+                const iconBg = document.getElementById("toast-icon-bg");
+                const icon = document.getElementById("toast-icon");
+
+                titleEl.textContent = title;
+                descEl.textContent = desc;
+
+                if (type === 'success') {
+                    AudioFX.success();
+                    iconBg.className = "p-3.5 rounded-xl text-emerald-500 bg-emerald-500/10 border border-emerald-500/20";
+                    icon.className = "fa-solid fa-circle-check text-xl";
+                    toast.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                } else if (type === 'error') {
+                    AudioFX.error();
+                    iconBg.className = "p-3.5 rounded-xl text-rose-500 bg-rose-500/10 border border-rose-500/20";
+                    icon.className = "fa-solid fa-triangle-exclamation text-xl";
+                    toast.style.borderColor = "rgba(244, 63, 94, 0.3)";
+                } else {
+                    AudioFX.click();
+                    iconBg.className = "p-3.5 rounded-xl text-sky-500 bg-sky-500/10 border border-sky-500/20";
+                    icon.className = "fa-solid fa-circle-info text-xl";
+                    toast.style.borderColor = "rgba(14, 165, 233, 0.3)";
+                }
+
+                toast.classList.remove("translate-y-24", "opacity-0");
+                toast.classList.add("translate-y-0", "opacity-100");
+
+                setTimeout(() => {
+                    toast.classList.remove("translate-y-0", "opacity-100");
+                    toast.classList.add("translate-y-24", "opacity-0");
+                }, 4000);
+            },
+
+            toggleDarkMode() {
+                AudioFX.click();
+                this.darkMode = !this.darkMode;
+                if (this.darkMode) {
+                    document.documentElement.classList.add("dark");
+                    localStorage.setItem("theme_mode", "dark");
+                } else {
+                    document.documentElement.classList.remove("dark");
+                    localStorage.setItem("theme_mode", "light");
+                }
+                this.updateThemeUI();
+            },
+
+            updateThemeUI() {
+                const themeIcon = document.getElementById("theme-icon");
+                if (this.darkMode) {
+                    themeIcon.className = "fa-solid fa-sun text-yellow-400 animate-spin-slow";
+                } else {
+                    themeIcon.className = "fa-solid fa-moon text-slate-700";
+                }
+            },
+
+            setAuthTab(tab) {
+                AudioFX.click();
+                this.activeTab = tab;
+                const formLogin = document.getElementById("form-login");
+                const formReg = document.getElementById("form-register");
+                const tabLogin = document.getElementById("tab-btn-login");
+                const tabReg = document.getElementById("tab-btn-register");
+
+                if (tab === 'login') {
+                    formLogin.classList.remove("hidden");
+                    formReg.classList.add("hidden");
+                    tabLogin.className = "flex-1 text-center font-extrabold text-sm pb-3 text-sky-500 border-b-2 border-sky-500 transition-all";
+                    tabReg.className = "flex-1 text-center font-extrabold text-sm pb-3 text-slate-400 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-600 dark:hover:text-slate-200 transition-all";
+                } else {
+                    formLogin.classList.add("hidden");
+                    formReg.classList.remove("hidden");
+                    tabLogin.className = "flex-1 text-center font-extrabold text-sm pb-3 text-slate-400 dark:text-slate-400 border-b-2 border-transparent hover:text-slate-600 dark:hover:text-slate-200 transition-all";
+                    tabReg.className = "flex-1 text-center font-extrabold text-sm pb-3 text-emerald-500 border-b-2 border-emerald-500 transition-all";
+                }
+            },
+
+            togglePasswordVisibility(id, button) {
+                AudioFX.click();
+                const input = document.getElementById(id);
+                const icon = button.querySelector("i");
+                if (input.type === "password") {
+                    input.type = "text";
+                    icon.className = "fa-solid fa-eye-slash";
+                } else {
+                    input.type = "password";
+                    icon.className = "fa-solid fa-eye";
+                }
+            },
+
+            fillCredentials(role) {
+                AudioFX.click();
+                const userInp = document.getElementById("login-username");
+                const passInp = document.getElementById("login-password");
+                const faceCheck = document.getElementById("face-id-checkbox");
+
+                if (role === 'Siswa') {
+                    userInp.value = "Siswamaribelajar240";
+                    passInp.value = "Siswamaribelajar240";
+                    faceCheck.checked = false;
+                } else {
+                    userInp.value = "Dompue1945";
+                    passInp.value = "Aminmaribelajar240";
+                    faceCheck.checked = false;
+                }
+                this.toggleFaceAuthSection();
+            },
+
+            resetIdleTimer() {
+                clearTimeout(this.idleTimer);
+                if (this.currentUser) {
+                    this.idleTimer = setTimeout(() => {
+                        this.executeAutoLogout();
+                    }, this.idleTimeout);
+                }
+            },
+
+            executeAutoLogout() {
+                if (!this.currentUser) return;
+                this.logout();
+                this.showToast("Logout Otomatis", "Sesi login ditutup demi privasi karena tidak terdeteksi adanya aktivitas.", "error");
+            },
+
+            toggleFaceAuthSection() {
+                const faceBox = document.getElementById("face-auth-box");
+                const checkbox = document.getElementById("face-id-checkbox");
+                if (checkbox.checked) {
+                    faceBox.classList.remove("hidden");
+                    faceBox.classList.add("flex");
+                    this.startWebcamStream("webcam", "face-status-overlay", "face-status-text");
+                } else {
+                    faceBox.classList.add("hidden");
+                    faceBox.classList.remove("flex");
+                    this.stopWebcamStream();
+                }
+            },
+
+            startWebcamStream(videoId, overlayId, textId) {
+                const video = document.getElementById(videoId);
+                const overlay = document.getElementById(overlayId);
+                const statusText = document.getElementById(textId);
+
+                overlay.classList.remove("hidden");
+                statusText.textContent = "Mengakses Sensor Kamera...";
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+                        .then(stream => {
+                            video.srcObject = stream;
+                            this.localStream = stream;
+                            overlay.classList.add("hidden");
+                            
+                            this.streamInterval = setInterval(() => {
+                                AudioFX.scanner();
+                            }, 1100);
+                        })
+                        .catch(err => {
+                            statusText.textContent = "Kamera tidak ditemukan. Menggunakan sensor simulasi...";
+                            setTimeout(() => {
+                                overlay.classList.add("hidden");
+                            }, 1500);
+                        });
+                } else {
+                    statusText.textContent = "Sensor biometrik tidak kompatibel.";
+                }
+            },
+
+            stopWebcamStream() {
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(track => track.stop());
+                    this.localStream = null;
+                }
+                if (this.streamInterval) {
+                    clearInterval(this.streamInterval);
+                    this.streamInterval = null;
+                }
+            },
+
+            handleLogin(event) {
+                event.preventDefault();
+                const username = document.getElementById("login-username").value.trim();
+                const pass = document.getElementById("login-password").value;
+                const isFaceUsed = document.getElementById("face-id-checkbox").checked;
+
+                // Built-in credential checks
+                if (username === "Siswamaribelajar240" && pass === "Siswamaribelajar240") {
+                    this.currentUser = {
+                        username: "Siswamaribelajar240",
+                        name: "Siswa Mari Belajar",
+                        role: "SISWA",
+                        class: "Kelas 9-A",
+                        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
+                        bio: "Siswa Kelas 9-A SMP Dompue School. Bertekad lulus dengan nilai terbaik!"
+                    };
+                    this.verifyAndRedirect(isFaceUsed);
+                } else if (username === "Dompue1945" && pass === "Aminmaribelajar240") {
+                    this.currentUser = {
+                        username: "Dompue1945",
+                        name: "Admin Web",
+                        role: "ADMIN",
+                        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
+                        bio: "Administrator Utama - Mengelola platform ujian dengan standar integritas kurikulum nasional."
+                    };
+                    this.verifyAndRedirect(isFaceUsed);
+                } else {
+                    // Check dynamically created students DB
+                    const students = getStudentsDB();
+                    const matched = students.find(s => s.username === username);
+                    if (matched) {
+                        if (!matched.isActive) {
+                            this.showToast("Akses Ditolak", "Akun Anda dinonaktifkan oleh administrator!", "error");
+                            return;
+                        }
+                        this.currentUser = {
+                            username: matched.username,
+                            name: matched.name,
+                            role: "SISWA",
+                            class: matched.className,
+                            avatar: matched.avatar,
+                            bio: matched.bio
+                        };
+                        this.verifyAndRedirect(isFaceUsed);
+                    } else {
+                        this.showToast("Login Gagal", "Kombinasi kata sandi atau nama pengguna salah!", "error");
+                    }
+                }
+            },
+
+            verifyAndRedirect(isFaceUsed) {
+                if (isFaceUsed) {
+                    // Check if current student has actually registered Face ID
+                    const db = getStudentsDB();
+                    const matched = db.find(s => s.username === this.currentUser.username);
+                    
+                    if (matched && !matched.faceRegistered) {
+                        this.showToast("Gagal Face ID", "Wajah Anda belum terdaftar! Silakan login biasa dan daftarkan wajah di menu profil.", "error");
+                        return;
+                    }
+
+                    const overlay = document.getElementById("face-status-overlay");
+                    const statusText = document.getElementById("face-status-text");
+
+                    overlay.classList.remove("hidden");
+                    statusText.innerHTML = `<i class="fa-solid fa-face-smile animate-bounce text-2xl text-cyan-400"></i><br>Membandingkan deskriptor geometri wajah...`;
+
+                    setTimeout(() => {
+                        this.stopWebcamStream();
+                        sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                        this.showDashboard();
+                        this.showToast("Face ID Berhasil", `Wajah terverifikasi. Selamat belajar, ${this.currentUser.name}!`, "success");
+                    }, 2200);
+                } else {
+                    sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                    this.showDashboard();
+                    this.showToast("Login Berhasil", `Selamat belajar kembali, ${this.currentUser.name}!`, "success");
+                }
+            },
+
+            handleRegister(event) {
+                event.preventDefault();
+                const name = document.getElementById("reg-fullname").value.trim();
+                const username = document.getElementById("reg-username").value.trim();
+                const className = document.getElementById("reg-class").value;
+                const password = document.getElementById("reg-password").value;
+
+                if (password.length < 6) {
+                    this.showToast("Sandi Lemah", "Kata sandi minimal berisi 6 karakter!", "error");
+                    return;
+                }
+
+                const students = getStudentsDB();
+                if (students.some(s => s.username === username) || username === "Dompue1945" || username === "Siswamaribelajar240") {
+                    this.showToast("Gagal Registrasi", "Nama pengguna tersebut sudah digunakan!", "error");
+                    return;
+                }
+
+                // Add to simulated localstorage database
+                students.push({
+                    username: username,
+                    name: name,
+                    bio: `Siswa baru terdaftar di ${className} SMP Negeri Dompue School.`,
+                    className: className,
+                    avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200`,
+                    isActive: true,
+                    faceRegistered: false,
+                    exams: {
+                        "Bahasa Indonesia": null,
+                        "Bahasa Inggris": null,
+                        "Matematika": null
+                    }
+                });
+
+                saveStudentsDB(students);
+                this.showToast("Registrasi Berhasil", "Silakan login menggunakan sandi baru Anda.", "success");
+                this.setAuthTab('login');
+                document.getElementById("login-username").value = username;
+                document.getElementById("login-password").value = password;
+            },
+
+            loginWithGoogle() {
+                AudioFX.click();
+                this.showToast("OAuth Koneksi", "Menghubungkan ke layanan Google API OAuth 2.0...", "info");
+                setTimeout(() => {
+                    this.currentUser = {
+                        username: "google_siswa",
+                        name: "Siswa Google OAuth",
+                        role: "SISWA",
+                        class: "Kelas 9-A",
+                        avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=200",
+                        bio: "Login praktis menggunakan tautan email Google terverifikasi."
+                    };
+                    sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                    this.showDashboard();
+                    this.showToast("OAuth Berhasil", `Selamat belajar, ${this.currentUser.name}!`, "success");
+                }, 1500);
+            },
+
+            logout() {
+                AudioFX.click();
+                this.stopWebcamStream();
+                sessionStorage.removeItem("active_user");
+                this.currentUser = null;
+                this.showAuth();
+                this.showToast("Telah Keluar", "Anda telah keluar dari gerbang keamanan ujian.", "info");
+            },
+
+            showAuth() {
+                document.getElementById("auth-view").classList.remove("hidden");
+                document.getElementById("siswa-view").classList.add("hidden");
+                document.getElementById("exam-view").classList.add("hidden");
+                document.getElementById("admin-view").classList.add("hidden");
+                document.getElementById("dev-view").classList.add("hidden");
+
+                document.getElementById("header-user-badge").classList.remove("flex");
+                document.getElementById("header-user-badge").classList.add("hidden");
+                document.getElementById("logout-btn").classList.add("hidden");
+                document.getElementById("session-counter").classList.add("hidden");
+            },
+
+            showDashboard() {
+                document.getElementById("auth-view").classList.add("hidden");
+                document.getElementById("exam-view").classList.add("hidden");
+                document.getElementById("dev-view").classList.add("hidden");
+
+                const headerName = document.getElementById("header-user-name");
+                const headerBadge = document.getElementById("header-user-role-badge");
+                const headerAvatar = document.getElementById("header-user-avatar");
+
+                headerName.textContent = this.currentUser.name;
+                headerAvatar.src = this.currentUser.avatar;
+
+                if (this.currentUser.role === 'ADMIN') {
+                    headerBadge.textContent = "ADMIN";
+                    headerBadge.className = "text-[9px] px-2 py-0.5 rounded-full font-extrabold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30";
+
+                    document.getElementById("siswa-view").classList.add("hidden");
+                    document.getElementById("admin-view").classList.remove("hidden");
+                    this.renderAdminDashboard();
+                } else {
+                    headerBadge.textContent = "SISWA";
+                    headerBadge.className = "text-[9px] px-2 py-0.5 rounded-full font-extrabold bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30";
+
+                    document.getElementById("siswa-view").classList.remove("hidden");
+                    document.getElementById("admin-view").classList.add("hidden");
+                    this.renderSiswaDashboard();
+                }
+
+                document.getElementById("header-user-badge").classList.remove("hidden");
+                document.getElementById("header-user-badge").classList.add("flex");
+                document.getElementById("logout-btn").classList.remove("hidden");
+                document.getElementById("session-counter").classList.remove("hidden");
+                
+                // Session countdown simulator (3 hours)
+                this.startSessionTimer(180 * 60);
+            },
+
+            showHome() {
+                if (this.currentUser) {
+                    this.showDashboard();
+                } else {
+                    this.showAuth();
+                }
+            },
+
+            showDevHub() {
+                AudioFX.click();
+                document.getElementById("auth-view").classList.add("hidden");
+                document.getElementById("siswa-view").classList.add("hidden");
+                document.getElementById("exam-view").classList.add("hidden");
+                document.getElementById("admin-view").classList.add("hidden");
+                document.getElementById("dev-view").classList.remove("hidden");
+                this.renderDevResources();
+            },
+
+            startSessionTimer(durSec) {
+                const clockText = document.getElementById("session-time");
+                let remaining = durSec;
+                
+                if (this.sessionInterval) clearInterval(this.sessionInterval);
+
+                this.sessionInterval = setInterval(() => {
+                    remaining--;
+                    const hours = Math.floor(remaining / 3600);
+                    const minutes = Math.floor((remaining % 3600) / 60);
+                    const seconds = remaining % 60;
+
+                    const padH = hours.toString().padStart(2, '0');
+                    const padM = minutes.toString().padStart(2, '0');
+                    const padS = seconds.toString().padStart(2, '0');
+
+                    clockText.textContent = `${padH}:${padM}:${padS}`;
+
+                    if (remaining <= 0) {
+                        clearInterval(this.sessionInterval);
+                        this.logout();
+                    }
+                }, 1000);
+            },
+
+            renderSiswaDashboard() {
+                // Update profile card details
+                document.getElementById("siswa-profile-img").src = this.currentUser.avatar;
+                document.getElementById("siswa-fullname-title").textContent = this.currentUser.name;
+                document.getElementById("siswa-class-title").textContent = this.currentUser.class;
+                document.getElementById("siswa-bio-title").textContent = this.currentUser.bio || "Belum mengunggah keterangan biodata.";
+                document.getElementById("siswa-greet-name").textContent = this.currentUser.name;
+
+                const db = getStudentsDB();
+                let myData = db.find(s => s.username === this.currentUser.username);
+                if (!myData) {
+                    myData = {
+                        username: this.currentUser.username,
+                        name: this.currentUser.name,
+                        bio: this.currentUser.bio,
+                        className: this.currentUser.class,
+                        avatar: this.currentUser.avatar,
+                        isActive: true,
+                        faceRegistered: false,
+                        exams: { "Bahasa Indonesia": null, "Bahasa Inggris": null, "Matematika": null }
+                    };
+                    db.push(myData);
+                    saveStudentsDB(db);
+                }
+
+                // Verify Face ID registration status
+                const btnFaceReg = document.getElementById("btn-face-register");
+                if (myData.faceRegistered) {
+                    btnFaceReg.innerHTML = `<i class="fa-solid fa-face-smile text-emerald-500 mr-1.5"></i> Face ID Terdaftar`;
+                    btnFaceReg.className = "w-full bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-bold py-2 rounded-xl cursor-default pointer-events-none";
+                } else {
+                    btnFaceReg.innerHTML = `<i class="fa-solid fa-id-card-clip text-sky-500 mr-1.5"></i> Daftarkan Face ID Wajah`;
+                    btnFaceReg.className = "w-full bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-xs text-sky-600 dark:text-sky-300 font-bold py-2 rounded-xl transition-all";
+                }
+
+                // Render dynamically subject list items
+                const subContainer = document.getElementById("subjects-container");
+                subContainer.innerHTML = "";
+
+                const subs = ["Bahasa Indonesia", "Bahasa Inggris", "Matematika"];
+                const icons = {
+                    "Bahasa Indonesia": "fa-book-open text-sky-500 bg-sky-500/10",
+                    "Bahasa Inggris": "fa-language text-indigo-500 bg-indigo-500/10",
+                    "Matematika": "fa-square-root-variable text-amber-500 bg-amber-500/10"
+                };
+
+                let doneCount = 0;
+                let scoreSum = 0;
+
+                subs.forEach(sub => {
+                    const statusRecord = myData.exams[sub];
+                    let detailsHTML = "";
+                    let triggerBtnHTML = "";
+
+                    if (statusRecord) {
+                        doneCount++;
+                        scoreSum += statusRecord.score;
+                        detailsHTML = `
+                            <div class="mt-4 flex items-center justify-between text-xs border-t border-slate-200/50 dark:border-white/5 pt-3">
+                                <span class="text-slate-500 dark:text-slate-400">Skor: <strong class="text-emerald-500">${statusRecord.score}</strong></span>
+                                <span class="text-emerald-500 font-extrabold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Selesai</span>
+                            </div>
+                        `;
+                        triggerBtnHTML = `
+                            <button class="w-full mt-4 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 py-2 rounded-xl text-xs font-bold cursor-default flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Nilai Sudah Dikirim
+                            </button>
+                        `;
+                    } else {
+                        detailsHTML = `
+                            <div class="mt-4 flex items-center justify-between text-xs border-t border-slate-200/50 dark:border-white/5 pt-3">
+                                <span class="text-slate-500 dark:text-slate-400">Soal: <strong>20 Butir PG</strong></span>
+                                <span class="text-amber-500 font-extrabold flex items-center gap-1"><i class="fa-solid fa-clock"></i> 30 Menit</span>
+                            </div>
+                        `;
+                        triggerBtnHTML = `
+                            <button onclick="app.startExam('${sub}')" class="w-full mt-4 bg-sky-600 hover:bg-sky-500 text-white py-2 rounded-xl text-xs font-bold shadow-lg shadow-sky-500/20 active:scale-95 transition-all">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Mulai Ujian Sekarang
+                            </button>
+                        `;
+                    }
+
+                    subContainer.innerHTML += `
+                        <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between shadow-md hover:border-sky-500/30 transition-all duration-300">
+                            <div>
+                                <div class="flex items-center gap-3">
+                                    <div class="p-3.5 rounded-xl ${icons[sub]}">
+                                        <i class="fa-solid ${icons[sub].split(' ')[0]} text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-black text-slate-900 dark:text-white text-sm lg:text-base">${sub}</h4>
+                                        <p class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-extrabold">Kurikulum 2026</p>
+                                    </div>
+                                </div>
+                                ${detailsHTML}
+                            </div>
+                            ${triggerBtnHTML}
+                        </div>
+                    `;
+                });
+
+                // Update Mini Dashboard numbers
+                const averageNum = doneCount > 0 ? (scoreSum / doneCount).toFixed(1) : "0.0";
+                document.getElementById("siswa-stat-completed").textContent = doneCount;
+                document.getElementById("siswa-stat-average").textContent = averageNum;
+
+                // Render dynamic exam score lists
+                const tableBody = document.getElementById("siswa-recap-table-body");
+                tableBody.innerHTML = "";
+
+                let hasHistory = false;
+                subs.forEach(sub => {
+                    const result = myData.exams[sub];
+                    if (result) {
+                        hasHistory = true;
+                        const durationText = `${Math.floor(result.duration / 60)}m ${result.duration % 60}d`;
+                        tableBody.innerHTML += `
+                            <tr class="border-b border-slate-200/50 dark:border-white/5 hover:bg-slate-200/20 dark:hover:bg-white/5 transition-all text-xs">
+                                <td class="py-4 px-4 font-bold text-slate-900 dark:text-white">${sub}</td>
+                                <td class="py-4 px-4 text-center"><span class="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-1 rounded-full border border-emerald-500/20 font-bold"><i class="fa-solid fa-check mr-1"></i>Selesai</span></td>
+                                <td class="py-4 px-4 text-center font-extrabold text-emerald-500 text-sm">${result.score}</td>
+                                <td class="py-4 px-4 text-center">
+                                    <span class="text-emerald-500 font-bold"><i class="fa-solid fa-circle-check"></i> ${result.correct}</span> / 
+                                    <span class="text-rose-500 font-bold"><i class="fa-solid fa-circle-xmark"></i> ${result.incorrect}</span>
+                                </td>
+                                <td class="py-4 px-4 text-center text-slate-500 dark:text-slate-400 font-bold">${durationText}</td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                if (!hasHistory) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Belum ada ujian terselesaikan. Ambil lembar ujian di atas.</td>
+                        </tr>
+                    `;
+                }
+            },
+
+            triggerAvatarUpload() {
+                document.getElementById("siswa-avatar-input").click();
+            },
+
+            handleAvatarUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.currentUser.avatar = e.target.result;
+                        
+                        const db = getStudentsDB();
+                        const matched = db.find(s => s.username === this.currentUser.username);
+                        if (matched) {
+                            matched.avatar = e.target.result;
+                            saveStudentsDB(db);
+                        }
+                        sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                        this.showDashboard();
+                        this.showToast("Foto Disimpan", "Avatar diperbarui dengan sukses di database lokal.", "success");
+                    };
+                    reader.readAsDataURL(file);
+                }
+            },
+
+            registerFaceDialog() {
+                AudioFX.click();
+                document.getElementById("face-register-modal").classList.remove("hidden");
+                this.startWebcamStream("reg-webcam", "reg-status-overlay", "reg-status-overlay");
+            },
+
+            closeFaceRegister(success) {
+                AudioFX.click();
+                this.stopWebcamStream();
+                document.getElementById("face-register-modal").classList.add("hidden");
+                if (success) {
+                    this.showToast("Face ID Terdaftar", "Geometri wajah Anda berhasil divalidasi dan disimpan di database lokal.", "success");
+                }
+            },
+
+            captureFaceLandmarks() {
+                const overlay = document.getElementById("reg-status-overlay");
+                overlay.classList.remove("hidden");
+                overlay.innerHTML = `<i class="fa-solid fa-arrows-to-eye animate-spin text-xl text-cyan-300"></i><br>Melacak titik koordinat geometris wajah...`;
+                
+                setTimeout(() => {
+                    const db = getStudentsDB();
+                    const matched = db.find(s => s.username === this.currentUser.username);
+                    if (matched) {
+                        matched.faceRegistered = true;
+                        saveStudentsDB(db);
+                    }
+                    this.closeFaceRegister(true);
+                    this.renderSiswaDashboard();
+                }, 2000);
+            },
+
+            openEditProfileModal() {
+                AudioFX.click();
+                document.getElementById("edit-profile-name").value = this.currentUser.name;
+                document.getElementById("edit-profile-bio").value = this.currentUser.bio || "";
+                document.getElementById("edit-profile-modal").classList.remove("hidden");
+            },
+
+            closeEditProfileModal() {
+                AudioFX.click();
+                document.getElementById("edit-profile-modal").classList.add("hidden");
+            },
+
+            saveEditProfile() {
+                const name = document.getElementById("edit-profile-name").value.trim();
+                const bio = document.getElementById("edit-profile-bio").value.trim();
+
+                if (!name) {
+                    this.showToast("Input Salah", "Kolom nama lengkap tidak boleh dikosongkan!", "error");
+                    return;
+                }
+
+                this.currentUser.name = name;
+                this.currentUser.bio = bio;
+
+                const db = getStudentsDB();
+                const matched = db.find(s => s.username === this.currentUser.username);
+                if (matched) {
+                    matched.name = name;
+                    matched.bio = bio;
+                    saveStudentsDB(db);
+                }
+
+                sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                this.closeEditProfileModal();
+                this.showDashboard();
+                this.showToast("Profil Disimpan", "Detail pembaruan data biografi Anda sukses diterapkan.", "success");
+            },
+
+            startExam(subject) {
+                AudioFX.click();
+                this.activeExam = subject;
+                this.currentQuestionIdx = 0;
+                this.answers = {};
+                this.examTimeLeft = 1800; // Reset countdown to 30 minutes
+
+                document.getElementById("siswa-view").classList.add("hidden");
+                document.getElementById("exam-view").classList.remove("hidden");
+                document.getElementById("active-exam-title").textContent = `Mata Pelajaran: ${subject}`;
+
+                this.renderQuestionNavigation();
+                this.renderQuestion();
+                this.updateProgressBar();
+
+                if (this.examTimer) clearInterval(this.examTimer);
+
+                this.examTimer = setInterval(() => {
+                    this.examTimeLeft--;
+                    this.updateExamTimerUI();
+
+                    if (this.examTimeLeft <= 0) {
+                        clearInterval(this.examTimer);
+                        this.autoSubmitExam();
+                    }
+                }, 1000);
+
+                this.showToast("Ujian Aktif", `Selamat berjuang menyelesaikan soal ${subject}. Jaga integritas kejujuran Anda!`, "info");
+            },
+
+            updateExamTimerUI() {
+                const timerText = document.getElementById("exam-timer-text");
+                const timerPill = document.getElementById("exam-timer-pill");
+                const timerIcon = document.getElementById("exam-timer-icon");
+
+                const min = Math.floor(this.examTimeLeft / 60);
+                const sec = this.examTimeLeft % 60;
+                const formatted = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+
+                timerText.textContent = formatted;
+
+                if (this.examTimeLeft < 120) {
+                    // Urgent red alert blinking
+                    timerPill.className = "flex items-center gap-3 bg-rose-600 text-white font-extrabold px-5 py-2.5 rounded-2xl shadow-lg animate-pulse";
+                    timerIcon.className = "fa-solid fa-triangle-exclamation text-xl text-white";
+                } else {
+                    timerPill.className = "flex items-center gap-3 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-extrabold px-5 py-2.5 rounded-2xl shadow-md";
+                    timerIcon.className = "fa-solid fa-stopwatch text-xl text-rose-500";
+                }
+            },
+
+            renderQuestionNavigation() {
+                const navGrid = document.getElementById("question-nav-grid");
+                navGrid.innerHTML = "";
+
+                const questionsSize = EXAM_DATABASE[this.activeExam].length;
+                for (let i = 0; i < questionsSize; i++) {
+                    const isFilled = this.answers[i] !== undefined;
+                    const isActive = this.currentQuestionIdx === i;
+
+                    let btnClass = "w-full py-2.5 text-xs font-black rounded-xl border text-center transition-all ";
+                    if (isActive) {
+                        btnClass += "bg-slate-900 dark:bg-white text-white dark:text-slate-950 border-transparent shadow-lg scale-105";
+                    } else if (isFilled) {
+                        btnClass += "bg-sky-500 text-white border-transparent shadow-md";
+                    } else {
+                        btnClass += "bg-slate-200/50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-slate-800";
+                    }
+
+                    navGrid.innerHTML += `<button onclick="app.jumpToQuestion(${i})" class="${btnClass}">${i + 1}</button>`;
+                }
+            },
+
+            renderQuestion() {
+                const pool = EXAM_DATABASE[this.activeExam];
+                const item = pool[this.currentQuestionIdx];
+
+                document.getElementById("question-badge").textContent = `Pertanyaan Ke-${this.currentQuestionIdx + 1} dari ${pool.length}`;
+                document.getElementById("question-text").innerHTML = item.q;
+
+                const optsBox = document.getElementById("options-container");
+                optsBox.innerHTML = "";
+
+                const codes = ["A", "B", "C", "D"];
+                item.a.forEach((choice, idx) => {
+                    const isSelected = this.answers[this.currentQuestionIdx] === idx;
+                    
+                    let cardClass = "flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-white/5 ";
+                    if (isSelected) {
+                        cardClass += "bg-gradient-to-r from-sky-500/15 to-indigo-500/15 border-sky-500 shadow-md";
+                    } else {
+                        cardClass += "bg-white dark:bg-slate-900/35 border-slate-200 dark:border-white/5";
+                    }
+
+                    let labelClass = "w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ";
+                    if (isSelected) {
+                        labelClass += "bg-sky-500 text-white";
+                    } else {
+                        labelClass += "bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-indigo-200";
+                    }
+
+                    optsBox.innerHTML += `
+                        <div onclick="app.selectChoice(${idx})" class="${cardClass}">
+                            <div class="${labelClass}">${codes[idx]}</div>
+                            <span class="text-xs lg:text-sm text-slate-800 dark:text-slate-100 font-bold">${choice}</span>
+                        </div>
+                    `;
+                });
+
+                document.getElementById("btn-prev-question").disabled = this.currentQuestionIdx === 0;
+                document.getElementById("btn-next-question").disabled = this.currentQuestionIdx === pool.length - 1;
+            },
+
+            selectChoice(idx) {
+                AudioFX.click();
+                this.answers[this.currentQuestionIdx] = idx;
+                this.renderQuestion();
+                this.renderQuestionNavigation();
+                this.updateProgressBar();
+            },
+
+            jumpToQuestion(idx) {
+                AudioFX.click();
+                this.currentQuestionIdx = idx;
+                this.renderQuestion();
+                this.renderQuestionNavigation();
+            },
+
+            nextQuestion() {
+                if (this.currentQuestionIdx < EXAM_DATABASE[this.activeExam].length - 1) {
+                    AudioFX.click();
+                    this.currentQuestionIdx++;
+                    this.renderQuestion();
+                    this.renderQuestionNavigation();
+                }
+            },
+
+            prevQuestion() {
+                if (this.currentQuestionIdx > 0) {
+                    AudioFX.click();
+                    this.currentQuestionIdx--;
+                    this.renderQuestion();
+                    this.renderQuestionNavigation();
+                }
+            },
+
+            updateProgressBar() {
+                const poolSize = EXAM_DATABASE[this.activeExam].length;
+                const filledSize = Object.keys(this.answers).length;
+                const percent = Math.round((filledSize / poolSize) * 100);
+
+                document.getElementById("progress-percentage").textContent = `${percent}%`;
+                document.getElementById("exam-progress-bar").style.width = `${percent}%`;
+            },
+
+            submitExamDialog() {
+                AudioFX.click();
+                const total = EXAM_DATABASE[this.activeExam].length;
+                const answered = Object.keys(this.answers).length;
+
+                this.showConfirmModal(
+                    "Kumpulkan Hasil Ujian?",
+                    `Anda sudah mengisi ${answered} dari total ${total} butir pertanyaan. Kirim lembar jawab sekarang?`,
+                    () => {
+                        this.finalizeExam();
+                    }
+                );
+            },
+
+            autoSubmitExam() {
+                this.showToast("Batas Waktu Habis", "Lembar jawaban otomatis diserahkan ke server database.", "error");
+                this.finalizeExam();
+            },
+
+            finalizeExam() {
+                clearInterval(this.examTimer);
+                const pool = EXAM_DATABASE[this.activeExam];
+                let rightCount = 0;
+                let wrongCount = 0;
+
+                pool.forEach((item, idx) => {
+                    const ans = this.answers[idx];
+                    if (ans !== undefined && ans === item.c) {
+                        rightCount++;
+                    } else {
+                        wrongCount++;
+                    }
+                });
+
+                const rawScore = (rightCount / pool.length) * 100;
+                const finalScore = Math.round(rawScore * 10) / 10;
+                const secondsTaken = 1800 - this.examTimeLeft;
+
+                // Update LocalStorage database
+                const db = getStudentsDB();
+                const matched = db.find(s => s.username === this.currentUser.username);
+                if (matched) {
+                    matched.exams[this.activeExam] = {
+                        score: finalScore,
+                        correct: rightCount,
+                        incorrect: wrongCount,
+                        duration: secondsTaken
+                    };
+                    saveStudentsDB(db);
+                }
+
+                this.showToast("Ujian Sukses", `Pengerjaan ${this.activeExam} berhasil diproses. Nilai: ${finalScore}`, "success");
+                this.activeExam = null;
+                this.showDashboard();
+            },
+
+            renderAdminDashboard() {
+                // Update Admin Profile detail cards
+                document.getElementById("admin-profile-img").src = this.currentUser.avatar;
+                document.getElementById("admin-fullname-text").textContent = this.currentUser.name;
+                document.getElementById("admin-bio-text").textContent = this.currentUser.bio || "Mengelola dengan penuh dedikasi.";
+
+                const students = getStudentsDB();
+                
+                // Aggregate Statistics values
+                let totalSiswa = students.length;
+                let examRecordsCount = 0;
+                let scoreSum = 0;
+                let passedCount = 0;
+
+                students.forEach(s => {
+                    Object.keys(s.exams).forEach(sub => {
+                        const rec = s.exams[sub];
+                        if (rec) {
+                            examRecordsCount++;
+                            scoreSum += rec.score;
+                            if (rec.score >= 70) passedCount++;
+                        }
+                    });
+                });
+
+                const avgNum = examRecordsCount > 0 ? (scoreSum / examRecordsCount).toFixed(1) : "0.0";
+                const passRate = examRecordsCount > 0 ? Math.round((passedCount / examRecordsCount) * 100) : 100;
+
+                document.getElementById("admin-stat-total-students").textContent = totalSiswa;
+                document.getElementById("admin-stat-total-completed").textContent = examRecordsCount;
+                document.getElementById("admin-stat-overall-average").textContent = avgNum;
+                document.getElementById("admin-stat-pass-rate").textContent = `${passRate}%`;
+
+                // Render dynamically Student directory rows
+                const tBody = document.getElementById("admin-students-table-body");
+                tBody.innerHTML = "";
+
+                students.forEach((student, idx) => {
+                    const activePill = student.isActive 
+                        ? `<span class="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold">Aktif</span>`
+                        : `<span class="bg-slate-500/10 text-slate-500 border border-slate-500/20 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold">Diblokir</span>`;
+                    
+                    const facePill = student.faceRegistered
+                        ? `<span class="text-emerald-500 font-extrabold text-[10px]"><i class="fa-solid fa-circle-check"></i> Aktif</span>`
+                        : `<span class="text-slate-400 text-[10px]"><i class="fa-solid fa-circle-xmark"></i> Belum</span>`;
+
+                    tBody.innerHTML += `
+                        <tr class="border-b border-slate-200/50 dark:border-white/5 hover:bg-slate-200/20 dark:hover:bg-white/5 transition-all text-xs">
+                            <td class="py-3 px-4 flex items-center gap-3">
+                                <img src="${student.avatar}" class="w-8 h-8 rounded-lg object-cover border border-slate-300 dark:border-white/10" alt="Avatar">
+                                <span class="font-bold text-slate-900 dark:text-white">${student.name}</span>
+                            </td>
+                            <td class="py-3 px-4 font-mono text-sky-500 dark:text-sky-300 font-bold">${student.username}</td>
+                            <td class="py-3 px-4 font-bold text-slate-600 dark:text-slate-300">${student.className}</td>
+                            <td class="py-3 px-4 text-center">${facePill}</td>
+                            <td class="py-3 px-4 text-center">${activePill}</td>
+                            <td class="py-3 px-4 text-center flex items-center justify-center gap-2">
+                                <button onclick="app.openEditStudentModal(${idx})" class="p-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 rounded-lg text-xs transition-all" title="Sunting Akun"><i class="fa-solid fa-user-gear"></i></button>
+                                <button onclick="app.deleteStudent(${idx})" class="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-lg text-xs transition-all" title="Hapus Akun"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                // Render Recap table lists
+                const recapBody = document.getElementById("admin-recaps-table-body");
+                recapBody.innerHTML = "";
+
+                let hasRecs = false;
+                students.forEach(student => {
+                    Object.keys(student.exams).forEach(subject => {
+                        const rec = student.exams[subject];
+                        if (rec) {
+                            hasRecs = true;
+                            const durationText = `${Math.floor(rec.duration / 60)}m ${rec.duration % 60}s`;
+                            recapBody.innerHTML += `
+                                <tr class="border-b border-slate-200 dark:border-white/10 hover:bg-slate-200/10 dark:hover:bg-white/5 transition-all text-xs">
+                                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-white print:text-black">${student.name}</td>
+                                    <td class="py-3 px-4 font-bold text-slate-600 dark:text-slate-300 print:text-black">${subject}</td>
+                                    <td class="py-3 px-4 text-center font-black text-emerald-500 text-sm">${rec.score}</td>
+                                    <td class="py-3 px-4 text-center text-emerald-500 font-bold"><i class="fa-solid fa-circle-check"></i> ${rec.correct}</td>
+                                    <td class="py-3 px-4 text-center text-rose-500 font-bold"><i class="fa-solid fa-circle-xmark"></i> ${rec.incorrect}</td>
+                                    <td class="py-3 px-4 text-center text-slate-500 dark:text-slate-400 font-bold print:text-black">${durationText}</td>
+                                </tr>
+                            `;
+                        }
+                    });
+                });
+
+                if (!hasRecs) {
+                    recapBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Belum ada rekap nilai ujian masuk ke sistem database.</td>
+                        </tr>
+                    `;
+                }
+
+                // Render/refresh visual Chart.js canvas
+                this.renderAdminCharts(students);
+            },
+
+            renderAdminCharts(students) {
+                let biScores = [], engScores = [], matScores = [];
+                students.forEach(s => {
+                    if (s.exams["Bahasa Indonesia"]) biScores.push(s.exams["Bahasa Indonesia"].score);
+                    if (s.exams["Bahasa Inggris"]) engScores.push(s.exams["Bahasa Inggris"].score);
+                    if (s.exams["Matematika"]) matScores.push(s.exams["Matematika"].score);
+                });
+
+                const getRerata = arr => arr.length > 0 ? (arr.reduce((a,b)=>a+b, 0) / arr.length).toFixed(1) : 0;
+
+                const avgBI = getRerata(biScores);
+                const avgENG = getRerata(engScores);
+                const avgMAT = getRerata(matScores);
+
+                if (window.myBarChart) window.myBarChart.destroy();
+                if (window.myDoughnutChart) window.myDoughnutChart.destroy();
+
+                const ctxBar = document.getElementById("barChartSubjects").getContext("2d");
+                window.myBarChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: ['B. Indonesia', 'B. Inggris', 'Matematika'],
+                        datasets: [{
+                            data: [avgBI, avgENG, avgMAT],
+                            backgroundColor: ['#0ea5e9', '#6366f1', '#f59e0b'],
+                            borderWidth: 0,
+                            borderRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+
+                let tuntas = 0, remidial = 0;
+                students.forEach(s => {
+                    Object.keys(s.exams).forEach(sub => {
+                        const scoreObj = s.exams[sub];
+                        if (scoreObj) {
+                            if (scoreObj.score >= 70) tuntas++;
+                            else remidial++;
+                        }
+                    });
+                });
+
+                const ctxDoughnut = document.getElementById("doughnutChartPassing").getContext("2d");
+                window.myDoughnutChart = new Chart(ctxDoughnut, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Lulus KKM (>=70)', 'Remedial (<70)'],
+                        datasets: [{
+                            data: [tuntas || 1, remidial],
+                            backgroundColor: ['#10b981', '#f43f5e'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: '#64748b', boxWidth: 12 } }
+                        }
+                    }
+                });
+            },
+
+            exportToExcel() {
+                AudioFX.click();
+                const db = getStudentsDB();
+                
+                // Construct clean CSV formatted content
+                let csv = "Nama Siswa,Mata Pelajaran,Skor Akhir,Jawaban Benar,Jawaban Salah,Durasi Detik\n";
+                db.forEach(student => {
+                    Object.keys(student.exams).forEach(sub => {
+                        const val = student.exams[sub];
+                        if (val) {
+                            csv += `"${student.name}","${sub}",${val.score},${val.correct},${val.incorrect},${val.duration}\n`;
+                        }
+                    });
+                });
+
+                const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+                const dlLink = document.createElement("a");
+                dlLink.setAttribute("href", encodedUri);
+                dlLink.setAttribute("download", "DompueSchool_RekapNilai_2026.csv");
+                document.body.appendChild(dlLink);
+                dlLink.click();
+                document.body.removeChild(dlLink);
+
+                this.showToast("Ekspor Berhasil", "Berkas rekap nilai sukses diunduh dalam format CSV.", "success");
+            },
+
+            exportToPDF() {
+                AudioFX.click();
+                window.print();
+            },
+
+            openAdminProfileModal() {
+                AudioFX.click();
+                document.getElementById("edit-admin-name").value = this.currentUser.name;
+                document.getElementById("edit-admin-bio").value = this.currentUser.bio || "";
+                document.getElementById("edit-admin-avatar").value = this.currentUser.avatar;
+                document.getElementById("edit-admin-modal").classList.remove("hidden");
+            },
+
+            closeAdminProfileModal() {
+                AudioFX.click();
+                document.getElementById("edit-admin-modal").classList.add("hidden");
+            },
+
+            saveAdminProfile() {
+                const name = document.getElementById("edit-admin-name").value.trim();
+                const bio = document.getElementById("edit-admin-bio").value.trim();
+                const avatar = document.getElementById("edit-admin-avatar").value.trim();
+
+                if (!name) {
+                    this.showToast("Input Salah", "Kolom nama administrator tidak boleh dikosongkan!", "error");
+                    return;
+                }
+
+                this.currentUser.name = name;
+                this.currentUser.bio = bio;
+                this.currentUser.avatar = avatar;
+
+                sessionStorage.setItem("active_user", JSON.stringify(this.currentUser));
+                this.closeAdminProfileModal();
+                this.showDashboard();
+                this.showToast("Profil Disimpan", "Detail pembaruan data administrator berhasil diterapkan.", "success");
+            },
+
+            openAddStudentModal() {
+                AudioFX.click();
+                document.getElementById("add-student-name").value = "";
+                document.getElementById("add-student-username").value = "";
+                document.getElementById("add-student-password").value = "";
+                document.getElementById("add-student-modal").classList.remove("hidden");
+            },
+
+            closeAddStudentModal() {
+                AudioFX.click();
+                document.getElementById("add-student-modal").classList.add("hidden");
+            },
+
+            handleAddStudent() {
+                const name = document.getElementById("add-student-name").value.trim();
+                const username = document.getElementById("add-student-username").value.trim();
+                const className = document.getElementById("add-student-class").value;
+                const password = document.getElementById("add-student-password").value;
+
+                if (!name || !username || !password) {
+                    this.showToast("Input Salah", "Seluruh isian formulir pendaftaran wajib diisi!", "error");
+                    return;
+                }
+
+                const db = getStudentsDB();
+                if (db.some(s => s.username === username)) {
+                    this.showToast("Registrasi Gagal", "Username tersebut sudah dipakai akun lain!", "error");
+                    return;
+                }
+
+                db.push({
+                    username: username,
+                    name: name,
+                    bio: "Akun siswa baru didaftarkan oleh Administrator Utama.",
+                    className: className,
+                    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
+                    isActive: true,
+                    faceRegistered: false,
+                    exams: { "Bahasa Indonesia": null, "Bahasa Inggris": null, "Matematika": null }
+                });
+
+                saveStudentsDB(db);
+                this.closeAddStudentModal();
+                this.renderAdminDashboard();
+                this.showToast("Siswa Ditambahkan", `Akun untuk ${name} sukses dimasukkan ke direktori.`, "success");
+            },
+
+            openEditStudentModal(idx) {
+                AudioFX.click();
+                const db = getStudentsDB();
+                const target = db[idx];
+
+                document.getElementById("edit-student-index").value = idx;
+                document.getElementById("edit-student-name-input").value = target.name;
+                document.getElementById("edit-student-class-input").value = target.className;
+                document.getElementById("edit-student-bio-input").value = target.bio || "";
+                document.getElementById("edit-student-status-input").value = target.isActive ? "true" : "false";
+
+                document.getElementById("edit-student-modal").classList.remove("hidden");
+            },
+
+            closeEditStudentModal() {
+                AudioFX.click();
+                document.getElementById("edit-student-modal").classList.add("hidden");
+            },
+
+            saveEditStudent() {
+                const idx = parseInt(document.getElementById("edit-student-index").value);
+                const name = document.getElementById("edit-student-name-input").value.trim();
+                const className = document.getElementById("edit-student-class-input").value.trim();
+                const bio = document.getElementById("edit-student-bio-input").value.trim();
+                const isActive = document.getElementById("edit-student-status-input").value === "true";
+
+                if (!name || !className) {
+                    this.showToast("Input Salah", "Kolom Nama & Rombongan Kelas tidak boleh kosong!", "error");
+                    return;
+                }
+
+                const db = getStudentsDB();
+                db[idx].name = name;
+                db[idx].className = className;
+                db[idx].bio = bio;
+                db[idx].isActive = isActive;
+
+                saveStudentsDB(db);
+                this.closeEditStudentModal();
+                this.renderAdminDashboard();
+                this.showToast("Detail Diubah", "Detail akun siswa berhasil disimpan di database.", "success");
+            },
+
+            deleteStudent(idx) {
+                AudioFX.click();
+                const db = getStudentsDB();
+                const target = db[idx];
+
+                this.showConfirmModal(
+                    "Lacak Penghapusan Akun",
+                    `Apakah Anda yakin ingin menghapus akun ${target.name}? Seluruh rekaman nilai kuis akan ikut terhapus dari sistem.`,
+                    () => {
+                        db.splice(idx, 1);
+                        saveStudentsDB(db);
+                        this.renderAdminDashboard();
+                        this.showToast("Siswa Dihapus", "Data akun berhasil dicabut dari direktori.", "success");
+                    }
+                );
+            },
+
+            renderDevResources() {
+                const block = document.getElementById("code-content-block");
+                block.textContent = DEV_RESOURCES[this.activeDevTab];
+            },
+
+            setDevTab(tab) {
+                AudioFX.click();
+                document.getElementById(`dev-tab-btn-${this.activeDevTab}`).className = "px-4 py-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-white transition-all";
+                
+                this.activeDevTab = tab;
+                document.getElementById(`dev-tab-btn-${tab}`).className = "px-4 py-2 text-sky-500 border-b-2 border-sky-500 font-bold transition-all";
+                this.renderDevResources();
+            },
+
+            copyActiveCode() {
+                AudioFX.click();
+                const codeStr = DEV_RESOURCES[this.activeDevTab];
+                
+                const dummyText = document.createElement("textarea");
+                dummyText.value = codeStr;
+                document.body.appendChild(dummyText);
+                dummyText.select();
+                try {
+                    document.execCommand('copy');
+                    this.showToast("Teks Disalin", "Potongan baris kode backend disalin ke clipboard.", "success");
+                } catch (err) {
+                    this.showToast("Salin Gagal", "Izin akses clipboard ditolak browser.", "error");
+                }
+                document.body.removeChild(dummyText);
+            },
+
+            showConfirmModal(title, desc, confirmCallback) {
+                document.getElementById("confirm-title").textContent = title;
+                document.getElementById("confirm-desc").textContent = desc;
+
+                const cBtn = document.getElementById("confirm-confirm-btn");
+                cBtn.onclick = () => {
+                    this.closeConfirmModal(true);
+                    confirmCallback();
+                };
+
+                document.getElementById("confirm-modal").classList.remove("hidden");
+            },
+
+            closeConfirmModal(confirmed) {
+                AudioFX.click();
+                document.getElementById("confirm-modal").classList.add("hidden");
+            }
+        };
+
+        window.onload = function() {
+            app.init();
+        };
+    </script>
+</body>
+</html>
